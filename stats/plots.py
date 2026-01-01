@@ -3,17 +3,17 @@ Wizualizacja danych z plików CSV wygenerowanych przez counter_stats.py
 Tworzy różne wykresy do analizy champion statistics, roles, win rates, counters itp.
 """
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import argparse
 import os
-from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 
 # Ustawienia wizualizacji
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
-plt.rcParams['figure.figsize'] = (14, 8)
+plt.rcParams['figure.figsize'] = (12, 7)
 plt.rcParams['font.size'] = 10
 
 
@@ -21,303 +21,179 @@ def load_data(data_dir: str):
     """Wczytuje pliki CSV z katalogu"""
     roles_path = os.path.join(data_dir, "champion_roles.csv")
     counters_path = os.path.join(data_dir, "counters.csv")
-    matchups_path = os.path.join(data_dir, "matchups_extra.csv")
     
     df_roles = pd.read_csv(roles_path) if os.path.exists(roles_path) else None
     df_counters = pd.read_csv(counters_path) if os.path.exists(counters_path) else None
-    df_matchups = pd.read_csv(matchups_path) if os.path.exists(matchups_path) else None
     
-    return df_roles, df_counters, df_matchups
+    return df_roles, df_counters
 
 
-def plot_top_champions_by_winrate(df_roles, output_dir, top_n=20):
-    """Wykres: Top N championów według win rate"""
-    if df_roles is None or df_roles.empty:
-        print("Brak danych champion_roles")
-        return
-    
-    # Filtrujemy tylko wiersze z win_rate
-    df_valid = df_roles[df_roles['win_rate_pct'].notna()].copy()
-    df_top = df_valid.nlargest(top_n, 'win_rate_pct')
-    
-    plt.figure(figsize=(14, 8))
-    bars = plt.barh(df_top['champion'] + ' (' + df_top['role'] + ')', 
-                    df_top['win_rate_pct'], 
-                    color=sns.color_palette("viridis", len(df_top)))
-    
-    plt.xlabel('Win Rate (%)')
-    plt.title(f'Top {top_n} Championów według Win Rate (wszystkie role)', fontsize=14, fontweight='bold')
-    plt.gca().invert_yaxis()
-    
-    # Dodaj wartości na slupkach
-    for i, bar in enumerate(bars):
-        width = bar.get_width()
-        plt.text(width + 0.2, bar.get_y() + bar.get_height()/2, 
-                f'{width:.1f}%', 
-                va='center', fontsize=9)
-    
+def _has_data(df, name: str) -> bool:
+    if df is None or df.empty:
+        print(f"Brak danych {name}, pomijam")
+        return False
+    return True
+
+
+def _save(output_dir: str, filename: str):
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '1_top_winrate.png'), dpi=150)
-    print(f"✓ Zapisano: 1_top_winrate.png")
-    plt.close()
-
-
-def plot_top_champions_by_pickrate(df_roles, output_dir, top_n=20):
-    """Wykres: Top N championów według pick rate"""
-    if df_roles is None or df_roles.empty:
-        return
-    
-    df_valid = df_roles[df_roles['pick_rate_pct'].notna()].copy()
-    df_top = df_valid.nlargest(top_n, 'pick_rate_pct')
-    
-    plt.figure(figsize=(14, 8))
-    bars = plt.barh(df_top['champion'] + ' (' + df_top['role'] + ')', 
-                    df_top['pick_rate_pct'],
-                    color=sns.color_palette("mako", len(df_top)))
-    
-    plt.xlabel('Pick Rate (%)')
-    plt.title(f'Top {top_n} Championów według Pick Rate (wszystkie role)', fontsize=14, fontweight='bold')
-    plt.gca().invert_yaxis()
-    
-    for i, bar in enumerate(bars):
-        width = bar.get_width()
-        plt.text(width + 0.1, bar.get_y() + bar.get_height()/2, 
-                f'{width:.1f}%', 
-                va='center', fontsize=9)
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '2_top_pickrate.png'), dpi=150)
-    print(f"✓ Zapisano: 2_top_pickrate.png")
+    plt.savefig(os.path.join(output_dir, filename), dpi=150)
+    print(f"✓ Zapisano: {filename}")
     plt.close()
 
 
 def plot_winrate_vs_pickrate_scatter(df_roles, output_dir):
-    """Scatter plot: Win Rate vs Pick Rate"""
-    if df_roles is None or df_roles.empty:
+    if not _has_data(df_roles, "champion_roles"):
         return
-    
-    df_valid = df_roles[(df_roles['win_rate_pct'].notna()) & (df_roles['pick_rate_pct'].notna())].copy()
-    
-    plt.figure(figsize=(14, 10))
-    
-    # Różne kolory dla różnych ról
+
+    df_valid = df_roles[(df_roles['win_rate_pct'].notna()) & (df_roles['pick_rate_pct'].notna())]
+    if df_valid.empty:
+        print("Brak pełnych danych do scattera win/pick")
+        return
+
+    plt.figure(figsize=(12, 8))
     roles = df_valid['role'].unique()
     colors = sns.color_palette("Set2", len(roles))
-    
+
     for role, color in zip(roles, colors):
         df_role = df_valid[df_valid['role'] == role]
-        plt.scatter(df_role['pick_rate_pct'], df_role['win_rate_pct'], 
-                   label=role, alpha=0.6, s=100, color=color, edgecolors='black', linewidth=0.5)
-    
-    plt.xlabel('Pick Rate (%)', fontsize=12)
-    plt.ylabel('Win Rate (%)', fontsize=12)
-    plt.title('Win Rate vs Pick Rate (wszystkie championi i role)', fontsize=14, fontweight='bold')
-    plt.legend(title='Role', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.scatter(df_role['pick_rate_pct'], df_role['win_rate_pct'],
+                    label=role, alpha=0.65, s=90, color=color,
+                    edgecolors='black', linewidth=0.5)
+
+    plt.xlabel('Pick Rate (%)', fontsize=11)
+    plt.ylabel('Win Rate (%)', fontsize=11)
+    plt.title('Win rate vs pick rate (role)', fontsize=13, fontweight='bold')
+    plt.legend(title='Rola', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.axhline(y=50, color='red', linestyle='--', alpha=0.5)
     plt.grid(True, alpha=0.3)
-    
-    # Linie referencyjne
-    plt.axhline(y=50, color='red', linestyle='--', alpha=0.5, label='50% WR')
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '3_winrate_vs_pickrate.png'), dpi=150)
-    print(f"✓ Zapisano: 3_winrate_vs_pickrate.png")
-    plt.close()
+
+    _save(output_dir, '1_winrate_vs_pickrate.png')
 
 
 def plot_role_distribution(df_roles, output_dir):
-    """Wykres: Rozkład championów per rola"""
-    if df_roles is None or df_roles.empty:
+    if not _has_data(df_roles, "champion_roles"):
         return
-    
-    role_counts = df_roles['role'].value_counts()
-    
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-    
-    # Wykres kołowy
-    axes[0].pie(role_counts.values, labels=role_counts.index, autopct='%1.1f%%',
-               startangle=90, colors=sns.color_palette("pastel"))
-    axes[0].set_title('Rozkład Championów według Ról', fontsize=12, fontweight='bold')
-    
-    # Wykres słupkowy
-    axes[1].bar(role_counts.index, role_counts.values, color=sns.color_palette("pastel"))
-    axes[1].set_xlabel('Rola')
-    axes[1].set_ylabel('Liczba Championów')
-    axes[1].set_title('Liczba Championów per Rola', fontsize=12, fontweight='bold')
-    axes[1].tick_params(axis='x', rotation=45)
-    
-    # Dodaj wartości na słupkach
-    for i, (role, count) in enumerate(role_counts.items()):
-        axes[1].text(i, count + 1, str(count), ha='center', va='bottom', fontweight='bold')
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '4_role_distribution.png'), dpi=150)
-    print(f"✓ Zapisano: 4_role_distribution.png")
-    plt.close()
+
+    role_counts = df_roles['role'].value_counts().sort_values(ascending=False)
+
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(role_counts.index, role_counts.values, color=sns.color_palette("pastel"))
+    plt.xlabel('Rola')
+    plt.ylabel('Liczba championów')
+    plt.title('Rozkład championów według ról', fontsize=13, fontweight='bold')
+    plt.tick_params(axis='x', rotation=30)
+
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2, height + 0.5,
+                 int(height), ha='center', va='bottom', fontweight='bold')
+
+    _save(output_dir, '1_role_distribution.png')
 
 
-def plot_avg_stats_by_role(df_roles, output_dir):
-    """Wykres: Średni Win Rate i Pick Rate per rola"""
-    if df_roles is None or df_roles.empty:
+def plot_strongest_counters(df_counters, output_dir, top_n=15):
+    if not _has_data(df_counters, "counters"):
         return
-    
-    df_valid = df_roles[(df_roles['win_rate_pct'].notna()) & (df_roles['pick_rate_pct'].notna())].copy()
-    role_stats = df_valid.groupby('role').agg({
-        'win_rate_pct': 'mean',
-        'pick_rate_pct': 'mean'
-    }).round(2)
-    
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-    
-    # Win Rate per rola
-    axes[0].bar(role_stats.index, role_stats['win_rate_pct'], color=sns.color_palette("rocket", len(role_stats)))
-    axes[0].set_ylabel('Średni Win Rate (%)')
-    axes[0].set_title('Średni Win Rate według Ról', fontsize=12, fontweight='bold')
-    axes[0].axhline(y=50, color='red', linestyle='--', alpha=0.5)
-    axes[0].tick_params(axis='x', rotation=45)
-    
-    for i, (role, wr) in enumerate(role_stats['win_rate_pct'].items()):
-        axes[0].text(i, wr + 0.3, f'{wr:.1f}%', ha='center', va='bottom', fontweight='bold')
-    
-    # Pick Rate per rola
-    axes[1].bar(role_stats.index, role_stats['pick_rate_pct'], color=sns.color_palette("crest", len(role_stats)))
-    axes[1].set_ylabel('Średni Pick Rate (%)')
-    axes[1].set_title('Średni Pick Rate według Ról', fontsize=12, fontweight='bold')
-    axes[1].tick_params(axis='x', rotation=45)
-    
-    for i, (role, pr) in enumerate(role_stats['pick_rate_pct'].items()):
-        axes[1].text(i, pr + 0.1, f'{pr:.1f}%', ha='center', va='bottom', fontweight='bold')
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '5_avg_stats_by_role.png'), dpi=150)
-    print(f"✓ Zapisano: 5_avg_stats_by_role.png")
-    plt.close()
 
-
-def plot_counter_ratings_distribution(df_counters, output_dir):
-    """Wykres: Rozkład counter ratings"""
-    if df_counters is None or df_counters.empty:
+    df_top = df_counters[df_counters['counter_rating'].notna()].nlargest(top_n, 'counter_rating')
+    if df_top.empty:
+        print("Brak wartości counter_rating")
         return
-    
-    df_valid = df_counters[df_counters['counter_rating'].notna()].copy()
-    
-    plt.figure(figsize=(14, 6))
-    plt.hist(df_valid['counter_rating'], bins=50, color='coral', edgecolor='black', alpha=0.7)
-    plt.xlabel('Counter Rating')
-    plt.ylabel('Częstotliwość')
-    plt.title('Rozkład Counter Ratings', fontsize=14, fontweight='bold')
-    plt.axvline(df_valid['counter_rating'].mean(), color='red', linestyle='--', 
-                linewidth=2, label=f'Średnia: {df_valid["counter_rating"].mean():.2f}')
-    plt.axvline(df_valid['counter_rating'].median(), color='blue', linestyle='--', 
-                linewidth=2, label=f'Mediana: {df_valid["counter_rating"].median():.2f}')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '6_counter_ratings_dist.png'), dpi=150)
-    print(f"✓ Zapisano: 6_counter_ratings_dist.png")
-    plt.close()
 
-
-def plot_strongest_counters(df_counters, output_dir, top_n=20):
-    """Wykres: Najsilniejsze counterowania (najwyższy counter rating)"""
-    if df_counters is None or df_counters.empty:
-        return
-    
-    df_valid = df_counters[df_counters['counter_rating'].notna()].copy()
-    df_top = df_valid.nlargest(top_n, 'counter_rating')
-    
-    # Tworzymy etykiety
     labels = df_top.apply(lambda row: f"{row['champion']} ({row['role']}) vs {row['counter']}", axis=1)
-    
-    plt.figure(figsize=(14, 10))
+
+    plt.figure(figsize=(12, 9))
     bars = plt.barh(labels, df_top['counter_rating'], color=sns.color_palette("flare", len(df_top)))
-    
-    plt.xlabel('Counter Rating')
-    plt.title(f'Top {top_n} Najsilniejszych Counterów', fontsize=14, fontweight='bold')
+    plt.xlabel('Counter rating')
+    plt.title(f'Top {top_n} najsilniejszych counterów', fontsize=13, fontweight='bold')
     plt.gca().invert_yaxis()
-    
-    for i, bar in enumerate(bars):
+
+    for bar in bars:
         width = bar.get_width()
-        plt.text(width + 0.5, bar.get_y() + bar.get_height()/2, 
-                f'{width:.1f}', 
-                va='center', fontsize=9)
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '7_strongest_counters.png'), dpi=150)
-    print(f"✓ Zapisano: 7_strongest_counters.png")
-    plt.close()
+        plt.text(width + 0.4, bar.get_y() + bar.get_height() / 2,
+                 f'{width:.1f}', va='center', fontsize=9)
+
+    _save(output_dir, '2_strongest_counters.png')
 
 
-def plot_most_countered_champions(df_counters, output_dir, top_n=15):
-    """Wykres: Championi, którzy są najczęściej counterowani"""
-    if df_counters is None or df_counters.empty:
+def summarize_counters_table(df_counters, output_dir, top_n=3):
+    """Eksportuje tabelę: dla każdego championa/roli najlepsze i najgorsze counter-picki."""
+    if not _has_data(df_counters, "counters"):
         return
-    
-    # Zliczamy ile razy dany champion jest counterowany
-    counter_counts = df_counters.groupby('champion').size().sort_values(ascending=False).head(top_n)
-    
-    plt.figure(figsize=(14, 8))
-    bars = plt.barh(counter_counts.index, counter_counts.values, 
-                    color=sns.color_palette("coolwarm", len(counter_counts)))
-    
-    plt.xlabel('Liczba Counterów')
-    plt.title(f'Top {top_n} Najczęściej Counterowanych Championów', fontsize=14, fontweight='bold')
-    plt.gca().invert_yaxis()
-    
-    for i, bar in enumerate(bars):
-        width = bar.get_width()
-        plt.text(width + 0.5, bar.get_y() + bar.get_height()/2, 
-                int(width), 
-                va='center', fontsize=10, fontweight='bold')
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, '8_most_countered.png'), dpi=150)
-    print(f"✓ Zapisano: 8_most_countered.png")
-    plt.close()
 
+    df = df_counters.copy()
 
-def plot_champion_counter_network(df_counters, output_dir, top_n=15):
-    """Wykres: Top countery dla wybranych championów - wizualizacja relacji"""
-    if df_counters is None or df_counters.empty:
+    def format_label(row):
+        if pd.notna(row.counter_win_rate_pct):
+            return f"{row.counter} ({row.counter_win_rate_pct:.1f}% win)"
+        if pd.notna(row.counter_rating):
+            return f"{row.counter} (rating {row.counter_rating:.1f})"
+        return row.counter
+
+    rows = []
+    grouped = df.groupby(['champion', 'role'])
+
+    for (champ, role), group in grouped:
+        work = group.copy()
+        work['sort_score'] = work['counter_win_rate_pct']
+        mask = work['sort_score'].isna()
+        work.loc[mask, 'sort_score'] = work.loc[mask, 'counter_rating']
+        work = work[work['sort_score'].notna()]
+        if work.empty:
+            continue
+
+        best = work.nsmallest(top_n, 'sort_score')  # najniższy win% => korzystne dla championa
+        worst = work.nlargest(top_n, 'sort_score')   # najwyższy win% => trudne matchupy
+
+        best_str = ", ".join(format_label(r) for r in best.itertuples()) or "-"
+        worst_str = ", ".join(format_label(r) for r in worst.itertuples()) or "-"
+
+        rows.append({
+            'champion': champ,
+            'role': role,
+            'best_against': best_str,
+            'worst_against': worst_str,
+        })
+
+    if not rows:
+        print("Brak danych do tabeli counterów")
         return
-    
-    # Wybierz top championów według liczby counterów
-    top_champs = df_counters.groupby('champion').size().nlargest(top_n).index
-    df_subset = df_counters[df_counters['champion'].isin(top_champs)].copy()
-    
-    # Grupuj countery dla każdego championa (top 3 countery)
-    fig, axes = plt.subplots(5, 3, figsize=(18, 20))
-    axes = axes.flatten()
-    
-    for idx, champ in enumerate(top_champs[:15]):
-        ax = axes[idx]
-        champ_data = df_subset[df_subset['champion'] == champ].nlargest(5, 'counter_rating')
-        
-        if not champ_data.empty:
-            colors = sns.color_palette("Reds_r", len(champ_data))
-            bars = ax.barh(champ_data['counter'], champ_data['counter_rating'], color=colors)
-            ax.set_xlabel('Counter Rating', fontsize=9)
-            ax.set_title(f'{champ}', fontsize=10, fontweight='bold')
-            ax.invert_yaxis()
-            ax.tick_params(axis='y', labelsize=8)
-            ax.tick_params(axis='x', labelsize=8)
-            
-            # Dodaj wartości
-            for bar in bars:
-                width = bar.get_width()
-                ax.text(width + 0.1, bar.get_y() + bar.get_height()/2, 
-                       f'{width:.1f}', va='center', fontsize=7)
-    
-    # Ukryj puste subploty
-    for idx in range(len(top_champs), 15):
-        axes[idx].axis('off')
-    
-    plt.suptitle(f'Top 5 Counterów dla {top_n} Najczęściej Counterowanych Championów', 
-                fontsize=16, fontweight='bold', y=0.995)
-    plt.tight_layout(rect=[0, 0, 1, 0.99])
-    plt.savefig(os.path.join(output_dir, '5_champion_counter_network.png'), dpi=150)
-    print(f"✓ Zapisano: 5_champion_counter_network.png")
-    plt.close()
+
+    summary_df = pd.DataFrame(rows).sort_values(['champion', 'role'])
+
+    csv_path = os.path.join(output_dir, 'counters_summary.csv')
+    summary_df.to_csv(csv_path, index=False)
+
+    md_path = os.path.join(output_dir, 'counters_summary.md')
+    with open(md_path, 'w', encoding='utf-8') as f:
+        f.write(summary_df.to_markdown(index=False))
+
+    print(f"✓ Zapisano: counters_summary.csv ({len(summary_df)} wierszy)")
+    print(f"✓ Zapisano: counters_summary.md")
+    print(summary_df.head(5).to_string(index=False))
+
+
+def plot_counter_winrate_box_by_role(df_counters, output_dir):
+    """Boxplot win rate'ów counterów na championów w podziale na role."""
+    if not _has_data(df_counters, "counters"):
+        return
+
+    df_valid = df_counters[df_counters['counter_win_rate_pct'].notna()]
+    if df_valid.empty:
+        print("Brak wartości counter_win_rate_pct do boxplota")
+        return
+
+    plt.figure(figsize=(12, 7))
+    sns.boxplot(data=df_valid, x='role', y='counter_win_rate_pct', palette="coolwarm", width=0.55)
+    sns.stripplot(data=df_valid, x='role', y='counter_win_rate_pct', color='black', size=3, alpha=0.25)
+    plt.axhline(50, color='gray', linestyle='--', linewidth=1)
+    plt.xlabel('Rola')
+    plt.ylabel('Win rate countera (%)')
+    plt.title('Rozkład win rate counterów vs championów per rola', fontsize=13, fontweight='bold')
+    plt.tick_params(axis='x', rotation=25)
+
+    _save(output_dir, '3_counter_winrate_by_role.png')
 
 
 def main():
@@ -335,24 +211,21 @@ def main():
     print(f"\nWczytywanie danych z: {args.data_dir}")
     
     # Wczytaj dane
-    df_roles, df_counters, df_matchups = load_data(args.data_dir)
+    df_roles, df_counters = load_data(args.data_dir)
     
     if df_roles is not None:
         print(f"✓ Wczytano champion_roles.csv: {len(df_roles)} wierszy")
     if df_counters is not None:
         print(f"✓ Wczytano counters.csv: {len(df_counters)} wierszy")
-    if df_matchups is not None:
-        print(f"✓ Wczytano matchups_extra.csv: {len(df_matchups)} wierszy")
-    
     print(f"\nGenerowanie wykresów do: {args.output_dir}")
     print("-" * 60)
     
     # Generuj wykresy
+    plot_winrate_vs_pickrate_scatter(df_roles, args.output_dir)
     plot_role_distribution(df_roles, args.output_dir)
-    plot_counter_ratings_distribution(df_counters, args.output_dir)
-    plot_strongest_counters(df_counters, args.output_dir, top_n=20)
-    plot_most_countered_champions(df_counters, args.output_dir, top_n=15)
-    plot_champion_counter_network(df_counters, args.output_dir, top_n=15)
+    plot_strongest_counters(df_counters, args.output_dir, top_n=15)
+    summarize_counters_table(df_counters, args.output_dir, top_n=3)
+    plot_counter_winrate_box_by_role(df_counters, args.output_dir)
     
     print("-" * 60)
     print(f"\n✅ Gotowe! Wszystkie wykresy zapisano w katalogu: {args.output_dir}")
