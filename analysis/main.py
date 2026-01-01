@@ -1,56 +1,136 @@
-import csv
-import streamlit as st
-from api.riot_client import riot_get
-from api.endpoints import ENDPOINTS
-from api.timeline import get_timeline
-from features.extract import extract_features
+"""
+Main entry point for Riot API Data Pipeline.
 
-#for name, url in ENDPOINTS.items():
-#    riot_get(name, url)
-match_ids = [
-    "EUN1_3873475397",
-    "EUN1_3873475400",
-    "EUN1_3873475401",
-    # dodaj kolejne
-]
+Usage:
+    python analysis/main.py --num_players 100 --matches_per_player 1 --out data/output/gold_dataset.csv
+    
+    # Z cache (wznowienie):
+    python analysis/main.py --num_players 2000 --out data/output/full_dataset.csv
+    
+    # Różne parametry:
+    python analysis/main.py --num_players 500 --platform EUW1 --tier PLATINUM --division II
+"""
+
+import argparse
+import sys
+import os
+
+# Dodaj parent directory do path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from api.pipeline import run_pipeline
+
 
 def main():
-    dataset = []
+    parser = argparse.ArgumentParser(
+        description="Riot API Data Pipeline - pobieranie danych graczy GOLD/PLAT/etc.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Przykłady użycia:
+  # Podstawowe uruchomienie (100 graczy GOLD I z EUN1):
+  python analysis/main.py --num_players 100
+  
+  # Pełny dataset (2000 graczy):
+  python analysis/main.py --num_players 2000 --out data/output/full_gold.csv
+  
+  # Platyna z EUW:
+  python analysis/main.py --num_players 500 --platform EUW1 --tier PLATINUM --division III
+  
+  # Więcej meczów na gracza:
+  python analysis/main.py --num_players 100 --matches_per_player 3
 
-    for match_id in match_ids:
-        # 1️⃣ Pobranie timeline
-        timeline = get_timeline(match_id)
-        if not timeline:
-            print(f"Nie udało się pobrać timeline dla {match_id}")
-            continue
+Pipeline używa cache - jeśli przerwiesz, uruchom ponownie z tymi samymi parametrami.
+Cache znajduje się w data/cache/ i może być usunięty jeśli potrzebujesz świeżych danych.
+        """
+    )
+    
+    parser.add_argument(
+        "--num_players",
+        type=int,
+        default=100,
+        help="Liczba graczy do pobrania (domyślnie: 100)"
+    )
+    
+    parser.add_argument(
+        "--matches_per_player",
+        type=int,
+        default=1,
+        help="Liczba meczów na gracza (domyślnie: 1)"
+    )
+    
+    parser.add_argument(
+        "--platform",
+        type=str,
+        default="EUN1",
+        choices=["EUN1", "EUW1", "NA1", "KR"],
+        help="Platform routing dla summoner/league endpoints (domyślnie: EUN1)"
+    )
+    
+    parser.add_argument(
+        "--region",
+        type=str,
+        default="EUROPE",
+        choices=["EUROPE", "AMERICAS", "ASIA"],
+        help="Regional routing dla match endpoints (domyślnie: EUROPE)"
+    )
+    
+    parser.add_argument(
+        "--tier",
+        type=str,
+        default="GOLD",
+        choices=["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "DIAMOND"],
+        help="Tier ranked (domyślnie: GOLD)"
+    )
+    
+    parser.add_argument(
+        "--division",
+        type=str,
+        default="I",
+        choices=["I", "II", "III", "IV"],
+        help="Division (I-IV, domyślnie: I)"
+    )
+    
+    parser.add_argument(
+        "--out",
+        type=str,
+        default="data/output/gold_dataset.csv",
+        help="Ścieżka do pliku CSV wyjściowego (domyślnie: data/output/gold_dataset.csv)"
+    )
+    
+    parser.add_argument(
+        "--clear_cache",
+        action="store_true",
+        help="Wyczyść cache przed uruchomieniem (świeże dane)"
+    )
+    
+    args = parser.parse_args()
+    
+    # Clear cache if requested
+    if args.clear_cache:
+        from api.storage import clear_cache
+        clear_cache()
+    
+    # Uruchom pipeline
+    try:
+        run_pipeline(
+            num_players=args.num_players,
+            matches_per_player=args.matches_per_player,
+            platform=args.platform,
+            region=args.region,
+            tier=args.tier,
+            division=args.division,
+            output_path=args.out
+        )
+    except KeyboardInterrupt:
+        print("\n\n[!] Pipeline interrupted by user")
+        print("[*] Progress was saved in cache. Run again to continue.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n\n[ERROR] Pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
-        # 2️⃣ Ekstrakcja cech do 15 minuty
-        features = extract_features(timeline, minute=15)
-
-        # 3️⃣ Pobranie wyniku meczu (target)
-        match_summary = riot_get(f"summary_{match_id}",
-                                 f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}")
-        if not match_summary:
-            print(f"Nie udało się pobrać summary dla {match_id}")
-            continue
-
-        # win dla team100 (1 = wygrana, 0 = przegrana)
-        team100_win = 1 if match_summary["info"]["teams"][0]["win"] else 0
-        features["win"] = team100_win
-
-        dataset.append(features)
-        print(f"[OK] Dodano cechy dla meczu {match_id}")
-
-    # 4️⃣ Zapis do CSV
-    if dataset:
-        keys = dataset[0].keys()
-        with open("data/processed/dataset.csv", "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=keys)
-            writer.writeheader()
-            writer.writerows(dataset)
-        print(f"Dataset zapisany do data/processed/dataset.csv")
-    else:
-        print("Brak danych do zapisania")
 
 if __name__ == "__main__":
     main()
