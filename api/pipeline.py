@@ -22,7 +22,7 @@ from api.endpoints import (
     get_match_timeline_url
 )
 from api.storage import save_checkpoint, load_checkpoint
-from features.extract import extract_features
+from features.extract import extract_features, extract_team_features
 
 
 def get_gold_players(
@@ -124,20 +124,20 @@ def get_match_ids(
     return match_map
 
 
-def get_timeline_features_15(
+def get_timeline_team_features_15(
     match_ids: List[str],
     region: str = "EUROPE"
-) -> Dict[str, Dict]:
+) -> Dict[str, Dict[str, Dict]]:
     """
-    Pobiera timeline i oblicza features@15 dla każdego match_id.
+    Pobiera timeline i zwraca features@15 per team dla każdego match_id.
     
     Returns:
-        Dict[match_id -> features]
+        Dict[match_id -> {team_id -> features}]
     """
-    checkpoint_name = f"timeline_features_{region}"
+    checkpoint_name = f"timeline_team_features_{region}"
     cached = load_checkpoint(checkpoint_name)
     if cached:
-        print(f"[CACHE] Using cache for timeline_features ({len(cached)} matches)")
+        print(f"[CACHE] Using cache for timeline_team_features ({len(cached)} matches)")
         return cached
     
     features_map = {}
@@ -151,10 +151,12 @@ def get_timeline_features_15(
         
         if timeline:
             try:
-                features = extract_features(timeline, minute=15)
-                features_map[match_id] = features
+                features_map[match_id] = {
+                    100: extract_team_features(timeline, 100, minute=15),
+                    200: extract_team_features(timeline, 200, minute=15),
+                }
             except Exception as e:
-                print(f"  [!] Error extracting features for {match_id}: {e}")
+                print(f"  [!] Error extracting team features for {match_id}: {e}")
         else:
             print(f"  [!] No timeline for {match_id}")
         
@@ -163,39 +165,28 @@ def get_timeline_features_15(
             time.sleep(0.5)
     
     save_checkpoint(checkpoint_name, features_map)
-    print(f"[OK] Computed features for {len(features_map)} matches")
+    print(f"[OK] Computed team features for {len(features_map)} matches")
     return features_map
 
 
 def get_match_outcomes(
     match_ids: List[str],
-    puuid_map: Dict[str, List[str]],  # puuid -> [match_ids]
     region: str = "EUROPE"
-) -> Dict[Tuple[str, str], int]:
+) -> Dict[str, Dict[int, int]]:
     """
-    Pobiera match summary i określa win/lose dla każdego (puuid, match_id).
+    Pobiera match summary i zwraca wynik wygrana/przegrana dla każdej drużyny.
     
     Returns:
-        Dict[(puuid, match_id) -> win (1/0)]
+        Dict[match_id -> {team_id -> win (1/0)}]
     """
-    checkpoint_name = f"match_outcomes_{region}"
+    checkpoint_name = f"match_team_outcomes_{region}"
     cached = load_checkpoint(checkpoint_name)
     if cached:
-        # Convert keys back from string to tuple
-        cached_tuples = {tuple(k.split("|")): v for k, v in cached.items()}
-        print(f"[CACHE] Using cache for match_outcomes ({len(cached_tuples)} records)")
-        return cached_tuples
+        print(f"[CACHE] Using cache for match_team_outcomes ({len(cached)} matches)")
+        return cached
     
-    outcomes = {}
+    outcomes: Dict[str, Dict[int, int]] = {}
     total = len(match_ids)
-    
-    # Odwróć mapę: match_id -> list of puuids
-    match_to_puuids = {}
-    for puuid, matches in puuid_map.items():
-        for match_id in matches:
-            if match_id not in match_to_puuids:
-                match_to_puuids[match_id] = []
-            match_to_puuids[match_id].append(puuid)
     
     print(f"[*] Fetching match outcomes for {total} matches...")
     
@@ -207,24 +198,18 @@ def get_match_outcomes(
             print(f"  [!] No match data for {match_id}")
             continue
         
-        # Mapowanie puuid -> win
-        participants = match_data["info"]["participants"]
-        for participant in participants:
-            p_puuid = participant["puuid"]
-            win = 1 if participant["win"] else 0
-            
-            # Zapisz tylko dla puuidów z naszej listy
-            if p_puuid in match_to_puuids.get(match_id, []):
-                outcomes[(p_puuid, match_id)] = win
-        
+        teams = match_data["info"].get("teams", [])
+        if not teams:
+            print(f"  [!] No team info for {match_id}")
+            continue
+        outcomes[match_id] = {team["teamId"]: (1 if team.get("win") else 0) for team in teams}
+
         if idx % 5 == 0:
             print(f"  Progress: {idx}/{total}")
             time.sleep(0.5)
     
-    # Save with string keys for JSON compatibility
-    outcomes_str = {f"{k[0]}|{k[1]}": v for k, v in outcomes.items()}
-    save_checkpoint(checkpoint_name, outcomes_str)
-    print(f"[OK] Fetched outcomes for {len(outcomes)} records")
+    save_checkpoint(checkpoint_name, outcomes)
+    print(f"[OK] Fetched team outcomes for {len(outcomes)} matches")
     return outcomes
 
 
@@ -276,46 +261,37 @@ def run_pipeline(
     all_match_ids = list(set(all_match_ids))  # deduplikacja
     print(f"\n[OK] Step 2/4: Fetched {len(all_match_ids)} unique matches\n")
     
-    # 3. Pobierz timeline features@15
-    features_map = get_timeline_features_15(all_match_ids, region)
-    print(f"\n[OK] Step 3/4: Computed features for {len(features_map)} matches\n")
+    # 3. Pobierz timeline features@15 per team
+    team_features_map = get_timeline_team_features_15(all_match_ids, region)
+    print(f"\n[OK] Step 3/4: Computed team features for {len(team_features_map)} matches\n")
     
-    # 4. Pobierz match outcomes
-    outcomes_map = get_match_outcomes(all_match_ids, match_map, region)
-    print(f"\n[OK] Step 4/4: Fetched outcomes for {len(outcomes_map)} records\n")
+    # 4. Pobierz match outcomes per team
+    team_outcomes_map = get_match_outcomes(all_match_ids, region)
+    print(f"\n[OK] Step 4/4: Fetched team outcomes for {len(team_outcomes_map)} matches\n")
     
-    # 5. Buduj dataset
+    # 5. Buduj dataset (jeden wiersz na drużynę)
     print("[*] Building final dataset...")
     dataset = []
+
+    for match_id, teams in team_features_map.items():
+        outcomes = team_outcomes_map.get(match_id, {})
+        for team_id, features in teams.items():
+            row = {
+                "matchId": match_id,
+                "teamId": team_id,
+                "win": outcomes.get(team_id, None),
+                **features,
+            }
+            dataset.append(row)
     
-    # Utwórz mapping puuid -> player
-    puuid_to_player = {p["puuid"]: p for p in players}
-    
-    for (puuid, match_id), win in outcomes_map.items():
-        if match_id not in features_map:
-            continue
-        
-        player = puuid_to_player.get(puuid)
-        if not player:
-            continue
-        
-        features = features_map[match_id].copy()
-        
-        row = {
-            "puuid": puuid,
-            "matchId": match_id,
-            "win": win,
-            **features
-        }
-        dataset.append(row)
-    
-    print(f"[OK] Dataset contains {len(dataset)} records")
+    print(f"[OK] Dataset contains {len(dataset)} team records")
     
     # 6. Zapisz do CSV
     if dataset:
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-        
-        fieldnames = ["puuid", "matchId", "win"] + list(features_map[all_match_ids[0]].keys())
+
+        # Użyj kluczy z pierwszego rekordu jako nagłówki
+        fieldnames = list(dataset[0].keys())
         
         with open(output_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
