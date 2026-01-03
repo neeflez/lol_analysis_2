@@ -154,39 +154,13 @@ st.markdown("""
 - **first_dragon_diff** – różnica, która drużyna zdobyła pierwszego smoka. Pierwszy smok daje drużynie przewagę w buffach.  
 - **win_team100** – zmienna celu, 1 jeśli drużyna 100 wygrała mecz, 0 jeśli przegrała.
 """)
-# Heatmapa korelacji
-st.subheader("Mapa korelacji cech (różnice drużyn)")
-numeric_cols = df_matches.select_dtypes(include=['int64', 'float64']).drop(columns=['win_team100'])
-fig, ax = plt.subplots(figsize=(12,8))
-sns.heatmap(numeric_cols.corr(), annot=True, fmt=".2f", cmap='coolwarm', ax=ax)
-st.pyplot(fig)
-
-st.markdown("""
-### Analiza korelacji cech
-
-Na podstawie mapy korelacji widzimy, że niektóre cechy są silnie ze sobą powiązane, co jest naturalne w kontekście gry:
-
-- **gold_avg_diff** silnie koreluje z **xp_avg_diff** (0.89) i **kills_avg_diff** (0.89), co pokazuje, że przewaga w złocie idzie w parze z przewagą w poziomach postaci oraz liczbie zabójstw.  
-- **level_avg_diff** i **xp_avg_diff** mają bardzo wysoką korelację (0.94), co jest logiczne, bo wyższy poziom postaci wynika z większego doświadczenia zdobytego w grze.  
-- **towers_diff** jest mocno skorelowane ujemnie z **gold_avg_diff** (-0.76) i **first_tower_diff** (0.87), co wskazuje, że pierwsza wieża daje znaczną przewagę w złocie i kontroli mapy.  
-- **dragons_diff** i **first_dragon_diff** są bardzo silnie skorelowane (0.95), co pokazuje, że drużyna, która zdobywa pierwszego smoka, zdobywa ich więcej w ciągu gry, lub do 15 minuty większość drużyn zdobywa tylko jednego smoka.  
-- **damage_to_champions_avg_diff** i **kills_avg_diff** mają wysoką korelację (0.71), co pokazuje, że drużyny z większą liczbą zabójstw zadają też więcej obrażeń bohaterom przeciwnika.  
-- **assists_avg_diff** jest umiarkowanie skorelowane z **kills_avg_diff** (0.78), co pokazuje, że współpraca drużynowa przy zabójstwach ma znaczenie.  
-
-Wnioski dla modelu:
-- Niektóre cechy są mocno skorelowane (np. złoto, XP, level, kills). Z pewnością będą one miały duży wpływ na wynik meczu. 
-- Cechy dotyczące pierwszych celów (first_blood_diff, first_tower_diff, first_dragon_diff) mają mniejsze korelacje z innymi zmiennymi, ale mogą mieć duży wpływ psychologiczny i strategiczny na wynik meczu.  
-- Wysokie korelacje między **dragon_diff** a **first_dragon_diff** oraz **tower_diff** a **first_tower_diff** są sensowne. Silna korelacja oznacza, że zdobycie pierwszych celów może pozytywnie wpływać na dalszą rozgrywkę, natomiast sytuacje, gdy drużyna zdobywa pierwszy cel, lecz ma mniej celów do 15 minuty, potencjalnie świadczą o różnicach sytuacji między poszczególnymi liniami.
-""")
 
 # Podgląd danych
 #st.subheader("Podgląd danych po połączeniu drużyn")
 #n_rows = st.sidebar.slider("Liczba wierszy do podglądu:", min_value=5, max_value=50, value=10)
 #st.dataframe(df_matches.head(n_rows))
 
-# ========================================================================
 # EKSPLORACYJNA ANALIZA DANYCH (EDA)
-# ========================================================================
 st.header("Eksploracyjna Analiza Danych (EDA)")
 
 # Balans klas
@@ -235,6 +209,15 @@ plt.suptitle('')
 plt.tight_layout()
 st.pyplot(fig)
 
+# Mapa korelacji
+st.subheader("Mapa korelacji cech (różnice drużyn)")
+numeric_cols = df_matches.select_dtypes(include=['int64', 'float64']).drop(columns=['win_team100'])
+fig, ax = plt.subplots(figsize=(12,8))
+sns.heatmap(numeric_cols.corr(), annot=True, fmt=".2f", cmap='coolwarm', ax=ax)
+st.pyplot(fig)
+
+
+
 st.markdown("""
 ### Wnioski z Analizy Eksploracyjnej (EDA)
 
@@ -252,15 +235,39 @@ st.markdown("""
 * **Obrażenia (Damage to Champions):** Co ciekawe, mimo że wygrani zadają średnio więcej obrażeń, pudełka (interquartile range) w dużej mierze się pokrywają. Oznacza to, że same obrażenia nie są tak determinujące jak zdobyte złoto czy cele mapy.
 * **Struktury (Towers):** Wyraźna separacja w `towers_diff` potwierdza, że niszczenie wież jest bezpośrednio powiązane z wynikiem meczu – mediana dla przegranych znajduje się poniżej zera, podczas gdy dla wygranych jest wyraźnie dodatnia.
 
-#### 4. Podsumowanie dla Modelowania
-* Cechy oparte na **zasobach (Gold, XP)** będą miały największą wagę w modelu.
-* Występowanie wartości odstających (outliers) w statystykach zabójstw i obrażeń sugeruje, że model powinien być odporny na szum (np. algorytmy drzewiaste jak XGBoost czy LightGBM).
-""")
+            
+#### 4. Analiza korelacji cech
 
-# ========================================================================
+Na podstawie mapy korelacji widzimy, że niektóre cechy są silnie ze sobą powiązane, co jest naturalne w kontekście gry:
+
+- **gold_avg_diff** silnie koreluje z **xp_avg_diff** (0.89) i **kills_avg_diff** (0.89), co pokazuje, że przewaga w złocie idzie w parze z przewagą w poziomach postaci oraz liczbie zabójstw.  
+- **level_avg_diff** i **xp_avg_diff** mają bardzo wysoką korelację (0.94), co jest logiczne, bo wyższy poziom postaci wynika z większego doświadczenia zdobytego w grze.  
+- **towers_diff** jest mocno skorelowane ujemnie z **gold_avg_diff** (-0.76) i **first_tower_diff** (0.87), co wskazuje, że pierwsza wieża daje znaczną przewagę w złocie i kontroli mapy.  
+- **dragons_diff** i **first_dragon_diff** są bardzo silnie skorelowane (0.95), co pokazuje, że drużyna, która zdobywa pierwszego smoka, zdobywa ich więcej w ciągu gry, lub do 15 minuty większość drużyn zdobywa tylko jednego smoka.  
+- **damage_to_champions_avg_diff** i **kills_avg_diff** mają wysoką korelację (0.71), co pokazuje, że drużyny z większą liczbą zabójstw zadają też więcej obrażeń bohaterom przeciwnika.  
+- **assists_avg_diff** jest umiarkowanie skorelowane z **kills_avg_diff** (0.78), co pokazuje, że współpraca drużynowa przy zabójstwach ma znaczenie.  
+
+Wnioski dla modelu:
+- Niektóre cechy są mocno skorelowane (np. złoto, XP, level, kills). Z pewnością będą one miały duży wpływ na wynik meczu. 
+- Cechy dotyczące pierwszych celów (first_blood_diff, first_tower_diff, first_dragon_diff) mają mniejsze korelacje z innymi zmiennymi, ale mogą mieć duży wpływ psychologiczny i strategiczny na wynik meczu.  
+- Wysokie korelacje między **dragon_diff** a **first_dragon_diff** oraz **tower_diff** a **first_tower_diff** są sensowne. Silna korelacja oznacza, że zdobycie pierwszych celów może pozytywnie wpływać na dalszą rozgrywkę, natomiast sytuacje, gdy drużyna zdobywa pierwszy cel, lecz ma mniej celów do 15 minuty, potencjalnie świadczą o różnicach sytuacji między poszczególnymi liniami.
+- Cechy oparte na **zasobach (Gold, XP)** będą miały największą wagę w modelu.
+- Występowanie wartości odstających (outliers) w statystykach zabójstw i obrażeń sugeruje, że model powinien być odporny na szum (np. algorytmy drzewiaste jak XGBoost czy LightGBM).
+
+            """)
+
 #  PRZYGOTOWANIE DANYCH
-# ========================================================================
 st.header("Przygotowanie danych do modelowania")
+
+st.markdown("""
+**Źródło danych:** Dane zostały pobrane za pomocą **API Riot Games**, które dostarcza kompletne i ustrukturyzowane informacje o meczach.
+
+**Braki danych:** Sprawdzono braki danych w zbiorze. API Riot Games nie zwraca niektórych informacji, które nie są dostępne dla wszystkich meczów:
+- Informacje o **Rift Herald** (herald) - usunięte ze względu na brak danych w części meczów
+- Informacje o **wizji** (vision score, wards placed/destroyed) - usunięte ze względu na niską dostępność danych
+
+Pozostałe dane są kompletne i nie wymagają imputacji braków.
+""")
 
 # Wybór cech i zmiennej celu
 X = df_matches.drop(columns=['matchId', 'win_team100'])
@@ -288,16 +295,14 @@ X_test_scaled = scaler.transform(X_test)
 
 st.write("Dane zostały wystandaryzowane (średnia=0, odchylenie standardowe=1)")
 
-# 1️⃣4️⃣ Opcjonalnie: SMOTE (oversampling) jeśli klasy są niezbalansowane
+# Opcjonalnie: SMOTE (oversampling) jeśli klasy są niezbalansowane
 #use_smote = st.sidebar.checkbox("Użyj SMOTE (oversampling)", False)
 #if use_smote:
  #   smote = SMOTE(random_state=random_state)
  #   X_train_scaled, y_train = smote.fit_resample(X_train_scaled, y_train)
  #   st.write(f" SMOTE zastosowany. Nowa liczba obserwacji w zbiorze uczącym: {X_train_scaled.shape[0]}")
 
-# ========================================================================
 # MODELOWANIE - UCZENIE MASZYNOWE
-# ========================================================================
 st.header("Modelowanie - Uczenie Maszynowe")
 
 st.markdown("""
@@ -313,9 +318,7 @@ Dla każdego modelu przeprowadzimy **optymalizację hiperparametrów** oraz **wa
 # Słownik do przechowywania wyników
 results = {}
 
-# ========================================================================
 # MODEL 1: REGRESJA LOGISTYCZNA
-# ========================================================================
 st.subheader("Regresja Logistyczna")
 
 with st.spinner("Trening modelu regresji logistycznej..."):
@@ -361,9 +364,7 @@ with st.spinner("Trening modelu regresji logistycznej..."):
     st.write(f"**F1-Score:** {f1_lr:.4f}")
     st.write(f"**AUC-ROC:** {auc_lr:.4f}")
 
-# ========================================================================
 # MODEL 2: K-NEAREST NEIGHBORS (KNN)
-# ========================================================================
 st.subheader("K-Nearest Neighbors (KNN)")
 
 with st.spinner("Trening modelu KNN..."):
@@ -409,9 +410,7 @@ with st.spinner("Trening modelu KNN..."):
     st.write(f"**F1-Score:** {f1_knn:.4f}")
     st.write(f"**AUC-ROC:** {auc_knn:.4f}")
 
-# ========================================================================
 # MODEL 3: DRZEWA DECYZYJNE
-# ========================================================================
 st.subheader("Drzewa Decyzyjne")
 
 with st.spinner("Trening modelu drzewa decyzyjnego..."):
@@ -470,9 +469,7 @@ W sytuacjach niekorzystnej przewagi ekonomicznej model koncentruje się na róż
 Z kolei przy przewadze ekonomicznej istotną rolę odgrywa kontrola obiektów mapy oraz przewaga w doświadczeniu, które dodatkowo zwiększają prawdopodobieństwo wygranej. Model wskazuje, że zwycięstwa są efektem łącznej dominacji ekonomicznej i strategicznej, a uzyskane wyniki są spójne z logiką rozgrywki.
     """)
 
-# ========================================================================
 # MODEL 4: SUPPORT VECTOR MACHINE (SVM)
-# ========================================================================
 st.subheader("Support Vector Machine (SVM)")
 
 with st.spinner("Trening modelu SVM..."):
@@ -518,9 +515,7 @@ with st.spinner("Trening modelu SVM..."):
     st.write(f"**F1-Score:** {f1_svm:.4f}")
     st.write(f"**AUC-ROC:** {auc_svm:.4f}")
 
-# ========================================================================
 # PORÓWNANIE MODELI
-# ========================================================================
 st.header("Porównanie modeli")
 
 # Tabela porównawcza
@@ -585,9 +580,7 @@ st.pyplot(fig)
 st.markdown("""
 Analiza krzywych ROC pokazuje, że wszystkie porównywane modele osiągają wyniki istotnie lepsze niż klasyfikator losowy, co potwierdza ich zdolność do skutecznego rozróżniania klas. Najlepsze właściwości separacyjne wykazują regresja logistyczna oraz SVM, których krzywe przez większość zakresu znajdują się najwyżej, co oznacza dobrą równowagę pomiędzy czułością a odsetkiem fałszywych alarmów. Drzewo decyzyjne osiąga nieco słabsze, lecz nadal stabilne rezultaty, natomiast model KNN wypada najsłabiej, szczególnie w obszarze niskich wartości fałszywie pozytywnych klasyfikacji. Wyniki wskazują, że modele liniowe oraz SVM charakteryzują się lepszą zdolnością generalizacji i bardziej stabilnym zachowaniem przy zmianie progu decyzyjnego.
 """)
-# ========================================================================
 # INTERPRETOWALNOŚĆ - SHAP VALUES
-# ========================================================================
 st.header("Interpretowalność modelu - SHAP Values")
 
 st.markdown("""
@@ -667,62 +660,103 @@ Cechy związane z kontrolą mapy oraz zadawanymi obrażeniami dodatkowo wzmacnia
     st.write(f"**Przewidywana klasa:** {predicted_label}")
 
 
-# ========================================================================
 # PODSUMOWANIE I WNIOSKI
-# ========================================================================
 st.header("Podsumowanie i Wnioski")
 
 st.markdown(f"""
 ### Podsumowanie projektu:
 
 **Cel projektu:**  
-Przewidywanie wyniku meczu League of Legends (wygrana/przegrana) na podstawie danych zebranych do 15. minuty gry.
+Przewidywanie wyniku meczu League of Legends (wygrana/przegrana) na podstawie danych zebranych do 15. minuty gry w dywizji **Gold**. 
+Projekt ma praktyczne zastosowanie w kontekście podejmowania decyzji o poddaniu meczu, która staje się dostępna właśnie w 15. minucie rozgrywki.
 
-**Dane:**  
+**Źródło danych:**  
+Dane zostały pobrane za pomocą **API Riot Games** w następujący sposób:
+- Query do dywizji Gold w celu pobrania identyfikatorów graczy (PUUID)
+- Pobranie ostatniego losowego meczu dla każdego gracza
+- Analiza statystyk do 15. minuty gry (`timeline15`)
+
+**Charakterystyka danych:**  
 - Liczba meczów: {len(df_matches)}
 - Liczba cech: {X.shape[1]} (różnice między drużynami)
 - Balans klas: {win_counts.get(0, 0)} przegranych vs {win_counts.get(1, 0)} wygranych
+- Kontekst: dywizja Gold – średni poziom rozgrywek, gdzie umiejętności makro (strategia drużynowa) mają większe znaczenie niż mikro (kontrola postaci)
 
-**Zastosowane metody:**
-1. **Regresja Logistyczna** - baseline model liniowy
-2. **K-Nearest Neighbors (KNN)** - metoda oparta na podobieństwie
-3. **Drzewa Decyzyjne** - model nieparametryczny, interpretowalny
-4. **Support Vector Machine (SVM)** - maksymalizacja marginesu decyzyjnego
+**Przeprowadzona analiza:**
+
+1. **Eksploracyjna Analiza Danych (EDA)**:
+   - Analiza rozkładów podstawowych statystyk (złoto, zabójstwa, XP, cele)
+   - Badanie korelacji między zmiennymi
+   - Wizualizacja zależności między cechami a wynikiem meczu
+   - Analiza balansu klas i rozkładu zmiennych
+
+2. **Przygotowanie danych**:
+   - Standaryzacja cech (StandardScaler)
+   - Podział na zbiór treningowy i testowy
+   - Opcjonalne zastosowanie SMOTE do balansowania klas
+
+3. **Modelowanie – zastosowane metody uczenia maszynowego**:
+   - **Regresja Logistyczna** - baseline model liniowy
+   - **K-Nearest Neighbors (KNN)** - metoda oparta na podobieństwie
+   - **Drzewa Decyzyjne** - model nieparametryczny, interpretowalny
+   - **Support Vector Machine (SVM)** - maksymalizacja marginesu decyzyjnego
+
+4. **Optymalizacja i walidacja**:
+   - Walidacja krzyżowa (cross-validation)
+   - GridSearchCV do optymalizacji hiperparametrów
+   - Porównanie modeli za pomocą: Accuracy, Precision, Recall, F1-Score, AUC
+
+5. **Interpretowalność modelu**:
+   - Analiza SHAP (SHapley Additive exPlanations)
+   - Identyfikacja najważniejszych cech wpływających na predykcje
 
 **Najlepszy model:**  
 **{best_model_name}** osiągnął najwyższy F1-Score: **{results[best_model_name]['f1']:.4f}**
 
-**Kluczowe obserwacje:**
+**Kluczowe wnioski z analizy:**
 
-1. **Skuteczność predykcji**: Wszystkie modele osiągnęły wysoką dokładność (accuracy > 70%), co sugeruje, 
-   że dane z pierwszych 15 minut meczu zawierają istotne sygnały predykcyjne.
+1. **Skuteczność predykcji**: Wszystkie modele osiągnęły wysoką dokładność (accuracy > 70%), potwierdzając, 
+   że dane z pierwszych 15 minut meczu zawierają wystarczająco dużo informacji do przewidywania wyniku końcowego.
 
-2. **Najważniejsze cechy** (na podstawie SHAP):
-   - `gold_avg_diff` - różnica w zdobytym złocie jest kluczowym wskaźnikiem przewagi
-   - `kills_avg_diff` - różnica w eliminacjach wpływa znacząco na wynik
-   - `xp_avg_diff` - różnica w doświadczeniu (poziomach) jest istotna
-   - `towers_diff` - zdobyte wieże dają dużą przewagę strategiczną
+2. **Najważniejsze cechy** (analiza SHAP):
+   - **`gold_avg_diff`** - różnica w zdobytym złocie jest najsilniejszym predyktorem wyniku
+   - **`kills_avg_diff`** - różnica w eliminacjach ma istotny wpływ
+   - **`xp_avg_diff`** - różnica w doświadczeniu (poziomach postaci) jest kluczowa
+   - **`towers_diff`** - wczesna kontrola wież daje znaczącą przewagę strategiczną
 
 3. **Porównanie modeli**:
-   - **SVM i Logistic Regression** radzą sobie najlepiej na tym zbiorze danych (liniowa separowalność)
+   - **SVM i Logistic Regression** radzą sobie najlepiej (wysoka liniowa separowalność danych)
    - **Decision Tree** oferuje dobrą interpretowalność, ale może być podatny na overfitting
-   - **KNN** działa dobrze, ale wymaga standaryzacji danych
+   - **KNN** działa efektywnie po standaryzacji danych
 
-4. **Wnioski strategiczne**:
-   - Wczesna przewaga w złocie i doświadczeniu jest silnym predyktorem końcowego wyniku
-   - Kontrola obiektywów (wieże, smoki) już w pierwszych 15 minutach ma znaczący wpływ
-   - Wysokie kill/death ratio koreluje z wygraną, ale nie jest jedynym czynnikiem
+4. **Wnioski strategiczne dla dywizji Gold**:
+   - **Złoto jest najważniejszym czynnikiem** - różnica w złocie (`gold_avg_diff`) ma największy wpływ na wynik według SHAP. 
+     Oznacza to, że gracze powinni skupić się na aktywnościach generujących najwięcej złota: **farmienie minionów (CS), 
+     zabójstwach, zdobywaniu wież i smoków**.
+   - **Rola junglera** - Skoro smoki (`dragons_diff`) i kontrola jungli (`jungle_cs_avg_diff`) mają mnniejszy wpływ na wynik niż wieże i złoto, to **jungler**,
+        powinien skupić się na wspieraniu linii i pomaganiu w zdobywaniu wież, zamiast tylko na farmieniu w jungli na niskim poziomie.
+   - Wczesna przewaga ekonomiczna (złoto, XP) jest silnym wskaźnikiem końcowego zwycięstwa
+   - Kontrola obiektywów mapy (wieże, smoki) już w pierwszych 15 minutach ma znaczący wpływ na wynik
+   - Statystyki drużynowe są bardziej istotne niż indywidualne osiągnięcia graczy
+   - Model może wspomóc decyzję o poddaniu meczu w 15. minucie, oszczędzając czas graczy
 
-**Potencjalne usprawnienia:**
-- Dodanie feature engineering (np. interakcje między cechami)
-- Zastosowanie ensemble methods (Random Forest, XGBoost)
-- Analiza różnic w różnych dywizjach rankingowych
-- Uwzględnienie dodatkowych danych (np. pick/ban, role graczy)
+5. **Potwierdzenie założeń ze wstępu projektu**:
+   - **Założenie o roli junglera nie zostało potwierdzone**, 
+   - Statystyki drużynowe (makro) mają większe znaczenie na poziomie Gold niż umiejętności indywidualne (mikro) - przewidywanie gier na podstawie danych makro powyżej 70%
+   - Różnice w zasobach między drużynami (złoto, XP) są kluczowe dla predykcji
+   - Wczesna kontrola obiektywów strategicznych koreluje z końcowym zwycięstwem
 
-**Ograniczenia:**
-- Analiza oparta wyłącznie na dywizji Gold - wyniki mogą się różnić dla innych rankingów
-- Nie uwzględniono czynników jakościowych (komunikacja zespołowa, psychologia)
-- Dane pochodzą z konkretnego okresu - meta gry może się zmieniać
+**Potencjalne dalsze działania:**
+- Implementacja w czasie rzeczywistym jako "wirtualny coach" dla drużyny
+- Porównanie skuteczności modelu dla różnych dywizji rankingowych (Bronze, Platinum, Diamond)
+- Uwzględnienie statystyk mikro (mechanika gry, postacie, umiejętności indywidualne)
+- Analiza czasowa: sprawdzenie innych punktów czasowych w grze (10 min, 20 min, 30 min)
+
+**Ograniczenia analizy:**
+- Analiza dotyczy wyłącznie dywizji Gold – wyniki mogą się różnić dla innych poziomów rankingowych
+- Nie uwzględniono czynników jakościowych (komunikacja, psychologia, teamwork)
+- Dane pochodzą z konkretnego okresu – sposób gry może się zmieniać wraz z aktualizacjami gry
+- Szumy w danych: gracze znacznie lepsi/gorsi od średniej dywizji mogą zniekształcać predykcje
 """)
 
 st.success("Projekt streamlit zakończony pomyślnie")
