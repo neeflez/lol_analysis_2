@@ -1,3 +1,7 @@
 requests
 python-dotenv
 streamlit
+pandas
+matplotlib
+seaborn
+streamlit
