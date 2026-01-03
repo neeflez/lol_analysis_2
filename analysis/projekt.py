@@ -18,53 +18,93 @@ from imblearn.over_sampling import SMOTE
 import warnings
 warnings.filterwarnings('ignore')
 
-# 1️⃣ Tytuł i wstęp
-st.title("Analiza danych League of Legends (Gold)") 
+
+# Tytuł i wstęp
+st.title("Analiza danych League of Legends z dywizji Gold") 
 st.write("Projekt: przewidywanie wygranej drużyny na podstawie danych do 15 minuty gry")
 
-# 📖 Wprowadzenie / opis gry i projektu
+# Wprowadzenie / opis gry i projektu
 st.markdown("""
 **League of Legends (LoL)** jest komputerową grą sieciową typu MOBA (Multiplayer Online Battle Arena), stworzoną przez firmę Riot Games. 
 Rozgrywka polega na rywalizacji dwóch pięcioosobowych drużyn, których celem jest zniszczenie głównej struktury przeciwnika – tzw. Nexusa. 
 Gra charakteryzuje się dużą złożonością decyzyjną, dynamicznym przebiegiem oraz silnym naciskiem na współpracę zespołową, 
 co czyni ją interesującym obiektem analizy z perspektywy danych i uczenia maszynowego.
 
-W niniejszym projekcie analizowany jest tryb **Solo/Duo**, będący najpopularniejszą formą rozgrywek rankingowych. 
-W tym trybie gracze mogą dołączyć do meczu samodzielnie lub w parze, natomiast pozostałe miejsca w drużynie są uzupełniane losowo przez system matchmakingu. 
-Każdy mecz rozgrywany jest w czasie rzeczywistym przeciwko innej drużynie graczy, a jego wynik wpływa na pozycję rankingową uczestników.
+Każdy gracz przed rozpoczęciem meczu wybiera jedną z 170 postaci. Każda postać charakteryzuje się innymi umiejętnościami, stylem gry oraz rodzajem zadawanych obrażeń. 
+Niektóre postacie współgrają ze sobą lepiej, inne gorzej, a niektóre mają przewagę nad innymi postaciami – tzw. counter postacie.
+
+Kombinacje wyboru postaci mają większe znaczenie na wyższych poziomach rozgrywek. W tym projekcie analizowane są mecze w przedziale rang **Gold**, który nie jest wysoki, więc wpływ wyboru postaci można uznać za mniej istotny.  
+Dywizje w League of Legends w kolejności od najniższej do najwyższej to:  
+Iron, Bronze, Silver, Gold, Platinum, Emerald, Diamond, Master, Challenger.
+
+Umiejętności graczy dzielimy na dwie kategorie: **mikro** i **makro**.  
+- **Mikro** – umiejętności kontroli postaci oraz wiedza o postaciach przeciwników.  
+- **Makro** – wszystko inne, czyli rozumienie gry jako całości: poruszanie się po mapie, zdobywanie celów, zarządzanie falami minionów i podejmowanie decyzji w drużynie.
+
+Na niskim poziomie rozgrywek większe znaczenie mają umiejętności makro, dlatego w projekcie skupiamy się na statystykach drużynowych, takich jak złoto, zabójstwa i kontrola mapy.
+
+**Szumy w danych:**  
+- Pojedynczy gracze zbyt dobrzy lub zbyt słabi mogą zaburzać działanie modelu, wpływając na przewidywania wyniku meczu.  
+- Na niższych rangach zdarzają się nietypowe sytuacje, np. błędne decyzje kilku graczy w jednym momencie, które mogą całkowicie zmienić wynik meczu.  
+
+W niniejszym projekcie analizowany jest tryb **Solo/Duo**, w którym gracze mogą dołączyć do meczu samodzielnie lub w parze, a pozostałe miejsca w drużynie uzupełnia system matchmakingu.  
+Każdy mecz rozgrywany jest przeciwko innej drużynie, a jego wynik wpływa na pozycję rankingową uczestników.
 
 **Struktura meczu:**
-- **Wczesna faza gry (early game)** – zdobywanie zasobów, rozwój postaci, pierwsze starcia,
-- **Środkowa faza gry (mid game)** – walki drużynowe i kontrola kluczowych obiektów mapy,
-- **Późna faza gry (late game)** – pojedyncze decyzje mogą przesądzić o wyniku meczu.
+- **Early game** – zdobywanie zasobów, rozwój postaci, pierwsze starcia.  
+- **Mid game** – walki drużynowe i kontrola kluczowych obiektów mapy.  
+- **Late game** – pojedyncze decyzje mogą przesądzić o wyniku meczu.
+
+Standardowy mecz League of Legends na mapie Summoner’s Rift trwa średnio **25–30 minut**. W niniejszym projekcie analizowane są **dane do 15. minuty gry**, ponieważ:  
+- w tym czasie najczęściej kształtuje się przewaga jednej z drużyn,  
+- w 15. minucie rozgrywki gracze uzyskują możliwość głosowania nad poddaniem meczu (surrender).  
+
+Analiza danych do 15. minuty pozwala zatem ocenić przewagę drużyny w kluczowym momencie meczu. Odpowiedni model predykcyjny mógłby pomóc graczom podjąć decyzję o poddaniu meczu wcześniej, co potencjalnie **oszczędza czas gry** i unika niepotrzebnych strat.
 
 **Role w drużynie:**
-- **Top lane (Top)** – frontline, pojedynki 1v1,
-- **Mid lane (Mid)** – centralna rola, zadawanie obrażeń, kontrola mapy,
-- **Jungle** – poruszanie się po lesie, wsparcie drużyny, kontrola celów,
-- **ADC (Attack Damage Carry)** – główne źródło obrażeń fizycznych,
+- **Top lane (Top)** – frontline, pojedynki 1v1.  
+- **Mid lane (Mid)** – centralna rola, zadawanie obrażeń, kontrola mapy.  
+- **Jungle** – poruszanie się po lesie, wsparcie drużyny, kontrola celów.  
+- **ADC (Attack Damage Carry)** – główne źródło obrażeń fizycznych.  
 - **Support** – ochrona sojuszników, inicjacja walk, kontrola wizji.
 
-**Wybór przedziału rankingowego – GOLD:**
-Analiza dotyczy meczów w dywizji Gold, gdzie gracze mają względnie zbliżony poziom umiejętności, co ogranicza skrajne różnice wynikające z braku doświadczenia lub poziomu profesjonalnego. 
-Dywizja Gold jest reprezentatywna dla szerokiej grupy społeczności graczy i sprzyja budowie stabilniejszych modeli predykcyjnych.
+Na niskich rangach największy wpływ na rozgrywkę ma zazwyczaj rola **Jungle**, ponieważ gracze koncentrują się na przechwytywaniu dużych celów, które mają znaczący wpływ na dalszą część meczu. Zasadność tego założenia zostanie sprawdzona w analizie.
 
-**Spodziewane problemy badawcze:**
-- Zjawisko **„feederów”** – gracze obniżający skuteczność drużyny, mogący zaburzać statystyki i predykcję,
-- Charakter gry drużynowej – wynik meczu zależy od interakcji wszystkich graczy, nie tylko od sumy indywidualnych statystyk.
+**Spodziewane rezultaty:**
+- Skuteczność przewidywania wyników meczu ~80%.  
+- Największy wpływ mają zabójstwa, złoto i efektywność gry junglera.
+
+**Źródło danych i sposób pobrania:**  
+Na potrzeby projektu dane zostały pobrane za pomocą **API Riot Games**, oficjalnego interfejsu pozwalającego na dostęp do statystyk graczy i meczów League of Legends. Proces pozyskiwania danych przebiegał w następujący sposób:  
+
+1. **Query do dywizji Gold** – pobranie identyfikatorów graczy (PUUID) z wybranej dywizji.  
+2. **Pobranie ostatniego losowego meczu** dla każdego gracza na podstawie PUUID (identyfikatora unikalnego dla gracza).  
+3. **Pobranie danych do 15. minuty meczu** (`timeline15`) – czyli informacji o statystykach każdego gracza w kluczowej fazie wczesnej gry.  
+
+Dzięki został uzyskany spójny zbiór danych, który pozwala analizować przewagę drużyny w pierwszych 15 minutach i budować modele predykcyjne przewidujące wynik meczu.
+
+
+
+**Możliwości analizy w czasie rzeczywistym:**  
+API Riot Games pozwala również na pobieranie danych **w trakcie trwania meczu**, co otwiera możliwość tworzenia modeli predykcyjnych działających w czasie rzeczywistym.  
+Taki model mógłby służyć jako **wirtualny coach** – nie tylko dla pojedynczego gracza, jak robią narzędzia typu *Porofessor*, ale dla całej drużyny.  
+Na przykład, analiza danych do 15. minuty mogłaby pomóc zidentyfikować **ogólne problemy w drużynie**, wskazać słabe punkty i zasugerować najlepsze decyzje strategiczne, co mogłoby skrócić czas gry i zwiększyć szanse na zwycięstwo.
+
+
 """)
 
-# 2️⃣ Załaduj dane
+
+# Załaduj dane
 data_path = "data/output/gold_full.csv"
 df = pd.read_csv(data_path)
 
-# 3️⃣ Filtracja remake’ów
+# Filtracja remake’ów
 st.sidebar.header("Filtry")
 remove_remakes = st.sidebar.checkbox("Usuń remake'i", True)
 if remove_remakes:
     df = df[(df['gold_avg'] >= 1000) & (df['level_avg'] >= 3)]
 
-# 4️⃣ Wyodrębnij drużyny i posortuj
+# Wyodrębnij drużyny i posortuj
 team100 = df[df['teamId'] == 100].copy().sort_values('matchId').reset_index(drop=True)
 team200 = df[df['teamId'] == 200].copy().sort_values('matchId').reset_index(drop=True)
 
@@ -88,31 +128,68 @@ df_matches['win_team100'] = team100['win']
 # Reset indeksu
 df_matches = df_matches.reset_index(drop=True)
 
-st.write("Liczba wierszy po filtracji:", df.shape[0])
-st.write("Liczba meczów po połączeniu drużyn:", df_matches.shape[0])
+#st.write("Liczba wierszy po filtracji:", df.shape[0])
+#st.write("Liczba meczów po połączeniu drużyn:", df_matches.shape[0])
 
-# 5️⃣ Podstawowe statystyki nowych cech
+#Podstawowe statystyki nowych cech
 st.subheader("Podstawowe statystyki różnic drużyn")
 st.dataframe(df_matches.describe().T)
 
-# 6️⃣ Heatmapa korelacji
+
+st.markdown("""
+- **gold_avg_diff** – różnica średniego złota między drużynami (team100 – team200). Złoto pozwala kupować przedmioty zwiększające siłę postaci, więc przewaga w złocie zwykle daje lepsze możliwości w walce.  
+- **cs_avg_diff** – różnica średniej liczby zabitych jednostek (minionów/monsterów) między drużynami. Więcej CS = więcej złota i doświadczenia.  
+- **jungle_cs_avg_diff** – różnica średniej liczby potworów zabitych przez junglera drużyny. Kontrola jungli wpływa na przewagę strategiczną i dostęp do celów mapy.  
+- **level_avg_diff** – różnica średniego poziomu postaci między drużynami. Wyższy poziom daje lepsze umiejętności i większą siłę w walkach.  
+- **xp_avg_diff** – różnica średniego doświadczenia (experience) zdobytego przez graczy. Wyższe XP pozwala szybciej zdobywać poziomy i umiejętności.  
+- **total_damage_done_avg_diff** – różnica średniego zadawanych obrażeń (wszystkie źródła) drużyn. Pokazuje, która drużyna jest agresywniejsza i skuteczniejsza w zadawaniu obrażeń.  
+- **total_damage_taken_avg_diff** – różnica średnich obrażeń otrzymanych przez drużyny. Może wskazywać, która drużyna jest bardziej odporna lub lepiej pozycjonuje swoich graczy.  
+- **damage_to_champions_avg_diff** – różnica średnich obrażeń zadanych przeciwnym bohaterom (champions). Ważny wskaźnik skuteczności w walkach drużynowych.  
+- **kills_avg_diff** – różnica średniej liczby zabójstw bohaterów przeciwnika. Bezpośrednio wpływa na przewagę w złocie i kontroli mapy.  
+- **assists_avg_diff** – różnica średniej liczby asyst w zabójstwach. Pokazuje współpracę drużynową i skuteczność w wspieraniu sojuszników.  
+- **towers_diff** – różnica liczby zniszczonych wież przez drużyny. Kontrolowanie wież daje przewagę na mapie i dostęp do wrogiego terytorium.  
+- **dragons_diff** – różnica liczby smoków zabitych przez drużyny. Smoki dają trwałe bonusy, więc ich przewaga jest strategicznie istotna.  
+- **first_blood_diff** – różnica, która drużyna zdobyła pierwszą krew (pierwsze zabójstwo). Pierwsze zabójstwo daje dodatkowe złoto i przewagę psychologiczną.  
+- **first_tower_diff** – różnica, która drużyna zniszczyła pierwszą wieżę. Pierwsza wieża daje dodatkowe złoto i kontrolę mapy.  
+- **first_dragon_diff** – różnica, która drużyna zdobyła pierwszego smoka. Pierwszy smok daje drużynie przewagę w buffach.  
+- **win_team100** – zmienna celu, 1 jeśli drużyna 100 wygrała mecz, 0 jeśli przegrała.
+""")
+# Heatmapa korelacji
 st.subheader("Mapa korelacji cech (różnice drużyn)")
 numeric_cols = df_matches.select_dtypes(include=['int64', 'float64']).drop(columns=['win_team100'])
 fig, ax = plt.subplots(figsize=(12,8))
 sns.heatmap(numeric_cols.corr(), annot=True, fmt=".2f", cmap='coolwarm', ax=ax)
 st.pyplot(fig)
 
-# 7️⃣ Podgląd danych
-st.subheader("Podgląd danych po połączeniu drużyn")
-n_rows = st.sidebar.slider("Liczba wierszy do podglądu:", min_value=5, max_value=50, value=10)
-st.dataframe(df_matches.head(n_rows))
+st.markdown("""
+### Analiza korelacji cech
+
+Na podstawie mapy korelacji widzimy, że niektóre cechy są silnie ze sobą powiązane, co jest naturalne w kontekście gry:
+
+- **gold_avg_diff** silnie koreluje z **xp_avg_diff** (0.89) i **kills_avg_diff** (0.89), co pokazuje, że przewaga w złocie idzie w parze z przewagą w poziomach postaci oraz liczbie zabójstw.  
+- **level_avg_diff** i **xp_avg_diff** mają bardzo wysoką korelację (0.94), co jest logiczne, bo wyższy poziom postaci wynika z większego doświadczenia zdobytego w grze.  
+- **towers_diff** jest mocno skorelowane ujemnie z **gold_avg_diff** (-0.76) i **first_tower_diff** (0.87), co wskazuje, że pierwsza wieża daje znaczną przewagę w złocie i kontroli mapy.  
+- **dragons_diff** i **first_dragon_diff** są bardzo silnie skorelowane (0.95), co pokazuje, że drużyna, która zdobywa pierwszego smoka, zdobywa ich więcej w ciągu gry, lub do 15 minuty większość drużyn zdobywa tylko jednego smoka.  
+- **damage_to_champions_avg_diff** i **kills_avg_diff** mają wysoką korelację (0.71), co pokazuje, że drużyny z większą liczbą zabójstw zadają też więcej obrażeń bohaterom przeciwnika.  
+- **assists_avg_diff** jest umiarkowanie skorelowane z **kills_avg_diff** (0.78), co pokazuje, że współpraca drużynowa przy zabójstwach ma znaczenie.  
+
+Wnioski dla modelu:
+- Niektóre cechy są mocno skorelowane (np. złoto, XP, level, kills). Z pewnością będą one miały duży wpływ na wynik meczu. 
+- Cechy dotyczące pierwszych celów (first_blood_diff, first_tower_diff, first_dragon_diff) mają mniejsze korelacje z innymi zmiennymi, ale mogą mieć duży wpływ psychologiczny i strategiczny na wynik meczu.  
+- Wysokie korelacje między **dragon_diff** a **first_dragon_diff** oraz **tower_diff** a **first_tower_diff** są sensowne. Silna korelacja oznacza, że zdobycie pierwszych celów może pozytywnie wpływać na dalszą rozgrywkę, natomiast sytuacje, gdy drużyna zdobywa pierwszy cel, lecz ma mniej celów do 15 minuty, potencjalnie świadczą o różnicach sytuacji między poszczególnymi liniami.
+""")
+
+# Podgląd danych
+#st.subheader("Podgląd danych po połączeniu drużyn")
+#n_rows = st.sidebar.slider("Liczba wierszy do podglądu:", min_value=5, max_value=50, value=10)
+#st.dataframe(df_matches.head(n_rows))
 
 # ========================================================================
-# 📊 EKSPLORACYJNA ANALIZA DANYCH (EDA)
+# EKSPLORACYJNA ANALIZA DANYCH (EDA)
 # ========================================================================
-st.header("📊 Eksploracyjna Analiza Danych (EDA)")
+st.header("Eksploracyjna Analiza Danych (EDA)")
 
-# 8️⃣ Balans klas
+# Balans klas
 st.subheader("Balans klas - Rozkład wyników (win_team100)")
 win_counts = df_matches['win_team100'].value_counts()
 st.write(f"**Przegrane drużyny (team100):** {win_counts.get(0, 0)} ({win_counts.get(0, 0)/len(df_matches)*100:.2f}%)")
@@ -128,7 +205,7 @@ for container in ax.containers:
     ax.bar_label(container)
 st.pyplot(fig)
 
-# 9️⃣ Analiza rozkładów kluczowych zmiennych
+# Analiza rozkładów kluczowych zmiennych
 st.subheader("Rozkład kluczowych zmiennych")
 key_features = ['gold_avg_diff', 'kills_avg_diff', 'cs_avg_diff', 
                 'xp_avg_diff', 'damage_to_champions_avg_diff', 'towers_diff']
@@ -145,7 +222,7 @@ for i, col in enumerate(key_features):
 plt.tight_layout()
 st.pyplot(fig)
 
-# 🔟 Boxploty - porównanie cech w zależności od wyniku
+# Boxploty - porównanie cech w zależności od wyniku
 st.subheader("Boxploty cech w zależności od wyniku meczu")
 fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 axes = axes.flatten()
@@ -159,19 +236,33 @@ plt.tight_layout()
 st.pyplot(fig)
 
 st.markdown("""
-### Obserwacje z EDA:
-- **Balans klas**: Zbiór danych jest zbalansowany (lub nieznacznie niezbalansowany), co pozwala na stabilne uczenie modeli.
-- **Rozkład zmiennych**: Większość zmiennych ma rozkład zbliżony do normalnego, z centrowaniem wokół zera (co jest oczekiwane dla różnic).
-- **Wpływ zmiennych**: Zmienne takie jak `gold_avg_diff`, `kills_avg_diff` i `towers_diff` wyraźnie różnicują się w zależności od wyniku meczu.
-- **Wartości odstające**: Obserwujemy pewną liczbę outlierów, szczególnie w zmiennych związanych z obrażeniami i killami.
+### Wnioski z Analizy Eksploracyjnej (EDA)
+
+#### 1. Balans Klas (Wynik Meczu)
+* **Zbalansowany Zbiór:** Rozkład zwycięstw i porażek jest zbliżony do proporcji **50/50** (z lekkim wskazaniem na jedną ze stron). To kluczowa informacja, która sugeruje, że dane są reprezentatywne i nie wymagają stosowania technik takich jak oversampling czy undersampling przed przystąpieniem do modelowania.
+
+#### 2. Rozkłady Kluczowych Zmiennych (Histogramy)
+* **Symetria Rozkładów:** Większość cech różnicowych (gold, xp, kills, cs, damage) wykazuje **rozkład normalny (Gaussa)** wycentrowany wokół zera. 
+* **Charakterystyka Rozgrywek:** Fakt, że większość obserwacji skupia się blisko zera, świadczy o tym, że większość meczów w zbiorze to starcia stosunkowo wyrównane. Skrajne przewagi (tzw. "stompy") stanowią mniejszość statystyczną.
+* **Dyskretność Wież:** Różnica w zniszczonych wieżach (`towers_diff`) jako jedyna ma charakter skokowy, co wynika z natury tego obiektu w grze.
+
+#### 3. Wpływ Cech na Wynik (Boxploty)
+* **Ekonomia i Doświadczenie (Gold & XP):** To najsilniejsze predyktory zwycięstwa. Mediany dla wygranych i przegranych są wyraźnie odseparowane. Wygrana drużyna niemal zawsze utrzymuje dodatnią różnicę w złocie i doświadczeniu.
+* **Zabójstwa (Kills) vs. Farma (CS):** Obie cechy silnie korelują z wynikiem, jednak różnica w CS (`cs_avg_diff`) wykazuje mniejszą liczbę wartości odstających w porównaniu do zabójstw. Sugeruje to, że stabilna przewaga w farmie jest bezpieczniejszym wskaźnikiem wygranej niż agresywne szukanie zabójstw.
+* **Obrażenia (Damage to Champions):** Co ciekawe, mimo że wygrani zadają średnio więcej obrażeń, pudełka (interquartile range) w dużej mierze się pokrywają. Oznacza to, że same obrażenia nie są tak determinujące jak zdobyte złoto czy cele mapy.
+* **Struktury (Towers):** Wyraźna separacja w `towers_diff` potwierdza, że niszczenie wież jest bezpośrednio powiązane z wynikiem meczu – mediana dla przegranych znajduje się poniżej zera, podczas gdy dla wygranych jest wyraźnie dodatnia.
+
+#### 4. Podsumowanie dla Modelowania
+* Cechy oparte na **zasobach (Gold, XP)** będą miały największą wagę w modelu.
+* Występowanie wartości odstających (outliers) w statystykach zabójstw i obrażeń sugeruje, że model powinien być odporny na szum (np. algorytmy drzewiaste jak XGBoost czy LightGBM).
 """)
 
 # ========================================================================
-# 🔧 PRZYGOTOWANIE DANYCH
+#  PRZYGOTOWANIE DANYCH
 # ========================================================================
-st.header("🔧 Przygotowanie danych do modelowania")
+st.header("Przygotowanie danych do modelowania")
 
-# 1️⃣1️⃣ Wybór cech i zmiennej celu
+# Wybór cech i zmiennej celu
 X = df_matches.drop(columns=['matchId', 'win_team100'])
 y = df_matches['win_team100']
 
@@ -179,7 +270,7 @@ st.write(f"**Liczba cech:** {X.shape[1]}")
 st.write(f"**Liczba obserwacji:** {X.shape[0]}")
 st.write(f"**Lista cech:** {list(X.columns)}")
 
-# 1️⃣2️⃣ Podział na zbiór uczący i testowy
+# Podział na zbiór uczący i testowy
 test_size = st.sidebar.slider("Rozmiar zbioru testowego (%):", min_value=10, max_value=40, value=20) / 100
 random_state = 42
 
@@ -190,24 +281,24 @@ X_train, X_test, y_train, y_test = train_test_split(
 st.write(f"**Zbiór uczący:** {X_train.shape[0]} obserwacji")
 st.write(f"**Zbiór testowy:** {X_test.shape[0]} obserwacji")
 
-# 1️⃣3️⃣ Standaryzacja cech
+# Standaryzacja cech
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-st.write("✅ Dane zostały wystandaryzowane (średnia=0, odchylenie standardowe=1)")
+st.write("Dane zostały wystandaryzowane (średnia=0, odchylenie standardowe=1)")
 
 # 1️⃣4️⃣ Opcjonalnie: SMOTE (oversampling) jeśli klasy są niezbalansowane
-use_smote = st.sidebar.checkbox("Użyj SMOTE (oversampling)", False)
-if use_smote:
-    smote = SMOTE(random_state=random_state)
-    X_train_scaled, y_train = smote.fit_resample(X_train_scaled, y_train)
-    st.write(f"✅ SMOTE zastosowany. Nowa liczba obserwacji w zbiorze uczącym: {X_train_scaled.shape[0]}")
+#use_smote = st.sidebar.checkbox("Użyj SMOTE (oversampling)", False)
+#if use_smote:
+ #   smote = SMOTE(random_state=random_state)
+ #   X_train_scaled, y_train = smote.fit_resample(X_train_scaled, y_train)
+ #   st.write(f" SMOTE zastosowany. Nowa liczba obserwacji w zbiorze uczącym: {X_train_scaled.shape[0]}")
 
 # ========================================================================
-# 🤖 MODELOWANIE - UCZENIE MASZYNOWE
+# MODELOWANIE - UCZENIE MASZYNOWE
 # ========================================================================
-st.header("🤖 Modelowanie - Uczenie Maszynowe")
+st.header("Modelowanie - Uczenie Maszynowe")
 
 st.markdown("""
 W tej sekcji zastosujemy **4 różne metody uczenia maszynowego**:
@@ -225,7 +316,7 @@ results = {}
 # ========================================================================
 # MODEL 1: REGRESJA LOGISTYCZNA
 # ========================================================================
-st.subheader("1️⃣ Regresja Logistyczna")
+st.subheader("Regresja Logistyczna")
 
 with st.spinner("Trening modelu regresji logistycznej..."):
     # Optymalizacja hiperparametrów
@@ -273,7 +364,7 @@ with st.spinner("Trening modelu regresji logistycznej..."):
 # ========================================================================
 # MODEL 2: K-NEAREST NEIGHBORS (KNN)
 # ========================================================================
-st.subheader("2️⃣ K-Nearest Neighbors (KNN)")
+st.subheader("K-Nearest Neighbors (KNN)")
 
 with st.spinner("Trening modelu KNN..."):
     # Optymalizacja hiperparametrów
@@ -321,7 +412,7 @@ with st.spinner("Trening modelu KNN..."):
 # ========================================================================
 # MODEL 3: DRZEWA DECYZYJNE
 # ========================================================================
-st.subheader("3️⃣ Drzewa Decyzyjne")
+st.subheader("Drzewa Decyzyjne")
 
 with st.spinner("Trening modelu drzewa decyzyjnego..."):
     # Optymalizacja hiperparametrów
@@ -377,7 +468,7 @@ with st.spinner("Trening modelu drzewa decyzyjnego..."):
 # ========================================================================
 # MODEL 4: SUPPORT VECTOR MACHINE (SVM)
 # ========================================================================
-st.subheader("4️⃣ Support Vector Machine (SVM)")
+st.subheader("Support Vector Machine (SVM)")
 
 with st.spinner("Trening modelu SVM..."):
     # Optymalizacja hiperparametrów (ograniczony grid ze względu na czas)
@@ -425,7 +516,7 @@ with st.spinner("Trening modelu SVM..."):
 # ========================================================================
 # PORÓWNANIE MODELI
 # ========================================================================
-st.header("📈 Porównanie modeli")
+st.header("Porównanie modeli")
 
 # Tabela porównawcza
 comparison_df = pd.DataFrame({
@@ -559,7 +650,7 @@ st.markdown("""
 # ========================================================================
 # PODSUMOWANIE I WNIOSKI
 # ========================================================================
-st.header("📝 Podsumowanie i Wnioski")
+st.header("Podsumowanie i Wnioski")
 
 st.markdown(f"""
 ### Podsumowanie projektu:
@@ -614,5 +705,5 @@ Przewidywanie wyniku meczu League of Legends (wygrana/przegrana) na podstawie da
 - Dane pochodzą z konkretnego okresu - meta gry może się zmieniać
 """)
 
-st.success("✅ Projekt zakończony pomyślnie!")
+st.success("Projekt streamlit zakończony pomyślnie")
 
