@@ -464,6 +464,11 @@ with st.spinner("Trening modelu drzewa decyzyjnego..."):
     plot_tree(best_dt, ax=ax, feature_names=X.columns, class_names=['Loss', 'Win'], 
               filled=True, rounded=True, fontsize=10)
     st.pyplot(fig)
+    st.markdown("""
+Drzewo decyzyjne pokazuje, że kluczowym czynnikiem wpływającym na wynik meczu jest przewaga ekonomiczna drużyny. Różnica w zdobywanym złocie stanowi pierwszy i najważniejszy podział w modelu, co wskazuje na fundamentalne znaczenie ekonomii gry w prognozowaniu zwycięstwa lub porażki.
+W sytuacjach niekorzystnej przewagi ekonomicznej model koncentruje się na różnicach w doświadczeniu oraz zadawanych obrażeniach. Gałęzie te najczęściej prowadzą do klasyfikacji porażki, co sugeruje, że brak złota trudno zrekompensować innymi statystykami.
+Z kolei przy przewadze ekonomicznej istotną rolę odgrywa kontrola obiektów mapy oraz przewaga w doświadczeniu, które dodatkowo zwiększają prawdopodobieństwo wygranej. Model wskazuje, że zwycięstwa są efektem łącznej dominacji ekonomicznej i strategicznej, a uzyskane wyniki są spójne z logiką rozgrywki.
+    """)
 
 # ========================================================================
 # MODEL 4: SUPPORT VECTOR MACHINE (SVM)
@@ -541,7 +546,9 @@ ax.set_ylim([0, 1])
 ax.legend(loc='lower right')
 ax.grid(axis='y', alpha=0.3)
 st.pyplot(fig)
-
+st.markdown("""
+Porównanie wyników pokazuje wyraźne różnice w skuteczności poszczególnych modeli klasyfikacyjnych. Model SVM charakteryzuje się najbardziej zrównoważonymi wynikami, osiągając wysoką skuteczność predykcji oraz dobre wartości miar precyzji, czułości i F1-score, co wskazuje na jego stabilność i dobrą zdolność generalizacji. Regresja logistyczna wyróżnia się bardzo dobrą zdolnością rozróżniania klas, co potwierdza wysoka wartość AUC-ROC, jednak jej skuteczność klasyfikacji jest nieco niższa w porównaniu do najlepszego modelu. Drzewo decyzyjne osiąga wysoką czułość, co oznacza dobrą identyfikację przypadków pozytywnych, lecz odbywa się to kosztem niższej precyzji. Model KNN wypada najsłabiej spośród porównywanych metod, osiągając niższe wartości większości metryk. Na podstawie uzyskanych wyników można stwierdzić, że SVM stanowi najlepszy kompromis pomiędzy skutecznością, stabilnością i jakością klasyfikacji.
+""")
 # Macierze konfuzji
 st.subheader("Macierze konfuzji")
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
@@ -557,7 +564,9 @@ for idx, (model_name, model_data) in enumerate(results.items()):
 
 plt.tight_layout()
 st.pyplot(fig)
-
+st.markdown("""
+Analiza macierzy konfuzji pokazuje, że wszystkie modele poprawnie klasyfikują większość obserwacji, jednak różnią się strukturą popełnianych błędów. Regresja logistyczna charakteryzuje się stosunkowo zrównoważonym rozkładem błędów, co oznacza podobną skuteczność w identyfikacji obu klas. Model KNN częściej myli klasy, szczególnie w przypadku błędnej klasyfikacji porażek jako zwycięstw, co wskazuje na jego mniejszą stabilność. Drzewo decyzyjne wykazuje tendencję do lepszej identyfikacji zwycięstw kosztem większej liczby błędów dla klasy porażki, co potwierdza jego wysoką czułość. Model SVM osiąga najbardziej zrównoważone wyniki, charakteryzując się dużą liczbą poprawnych klasyfikacji przy relatywnie niskiej liczbie błędów dla obu klas. Uzyskane wyniki potwierdzają, że SVM najlepiej radzi sobie z rozróżnianiem klas przy zachowaniu stabilnej struktury błędów.
+""")
 # Krzywe ROC
 st.subheader("Krzywe ROC")
 fig, ax = plt.subplots(figsize=(10, 8))
@@ -573,11 +582,13 @@ ax.set_title('Krzywe ROC - Porównanie modeli', fontsize=14, fontweight='bold')
 ax.legend(loc='lower right')
 ax.grid(alpha=0.3)
 st.pyplot(fig)
-
+st.markdown("""
+Analiza krzywych ROC pokazuje, że wszystkie porównywane modele osiągają wyniki istotnie lepsze niż klasyfikator losowy, co potwierdza ich zdolność do skutecznego rozróżniania klas. Najlepsze właściwości separacyjne wykazują regresja logistyczna oraz SVM, których krzywe przez większość zakresu znajdują się najwyżej, co oznacza dobrą równowagę pomiędzy czułością a odsetkiem fałszywych alarmów. Drzewo decyzyjne osiąga nieco słabsze, lecz nadal stabilne rezultaty, natomiast model KNN wypada najsłabiej, szczególnie w obszarze niskich wartości fałszywie pozytywnych klasyfikacji. Wyniki wskazują, że modele liniowe oraz SVM charakteryzują się lepszą zdolnością generalizacji i bardziej stabilnym zachowaniem przy zmianie progu decyzyjnego.
+""")
 # ========================================================================
 # INTERPRETOWALNOŚĆ - SHAP VALUES
 # ========================================================================
-st.header("🔍 Interpretowalność modelu - SHAP Values")
+st.header("Interpretowalność modelu - SHAP Values")
 
 st.markdown("""
 **SHAP (SHapley Additive exPlanations)** to metoda wyjaśniania predykcji modeli uczenia maszynowego 
@@ -613,13 +624,25 @@ with st.spinner("Obliczanie wartości SHAP... (może potrwać kilka minut)"):
     fig, ax = plt.subplots(figsize=(10, 8))
     shap.summary_plot(shap_values, X_test_scaled, feature_names=X.columns, show=False)
     st.pyplot(fig)
+    st.markdown("""
+    Analiza wartości SHAP dla najlepszego modelu pokazuje, że największy wpływ na predykcję wyniku meczu mają cechy związane z przewagą ekonomiczną oraz tempem rozwoju drużyny. Na pierwszym planie dominuje różnica w średnim złocie, której wysokie wartości jednoznacznie zwiększają prawdopodobieństwo zwycięstwa, natomiast niskie sprzyjają porażce. Istotną rolę odgrywają również różnice w kontroli kluczowych obiektów mapy oraz zdobywanym doświadczeniu, co potwierdza znaczenie aspektów makrogry i zarządzania zasobami.
+
+Cechy związane z obrażeniami, zarówno zadawanymi, jak i otrzymywanymi, wpływają na predykcję w sposób bardziej zróżnicowany, wzmacniając lub osłabiając wynik w zależności od kontekstu pozostałych zmiennych. Z kolei statystyki o charakterze bardziej szczegółowym, takie jak liczba zabójstw, asyst czy pierwsza krew, mają relatywnie niewielki wpływ na końcową decyzję modelu.
+
+Uzyskane wyniki wskazują, że model opiera swoje decyzje głównie na cechach odzwierciedlających długofalową przewagę drużyny, a nie na pojedynczych, incydentalnych zdarzeniach w trakcie meczu.
+    
+    """)
     
     # Bar plot (średnia wartość SHAP)
     st.subheader("Średnia wartość SHAP dla każdej cechy")
     fig, ax = plt.subplots(figsize=(10, 8))
     shap.summary_plot(shap_values, X_test_scaled, feature_names=X.columns, plot_type='bar', show=False)
     st.pyplot(fig)
-    
+    st.markdown("""
+Wykres średnich wartości SHAP pokazuje globalną istotność cech w najlepszym modelu, wskazując, które zmienne mają największy wpływ na podejmowane predykcje niezależnie od kierunku oddziaływania. Największe znaczenie mają cechy związane z przewagą ekonomiczną oraz kontrolą kluczowych elementów mapy, co potwierdza, że model w głównej mierze opiera swoje decyzje na długofalowej dominacji drużyny. Istotną rolę odgrywa również tempo rozwoju postaci, wyrażone poprzez różnice w doświadczeniu, które wzmacniają lub osłabiają przewagę ekonomiczną.
+
+Cechy związane z obrażeniami mają umiarkowany wpływ na wynik predykcji, natomiast statystyki o bardziej szczegółowym charakterze, takie jak pojedyncze zdarzenia czy indywidualne akcje, charakteryzują się relatywnie niską istotnością globalną. Wyniki te wskazują, że model preferuje stabilne i systematyczne przewagi drużynowe zamiast krótkotrwałych, losowych zdarzeń.
+""")
     # Waterfall plot dla przykładowej obserwacji
     st.subheader("SHAP Waterfall Plot - Przykładowa predykcja")
     sample_idx = st.slider("Wybierz indeks obserwacji do analizy:", 0, len(X_test_scaled)-1, 0)
@@ -633,19 +656,16 @@ with st.spinner("Obliczanie wartości SHAP... (może potrwać kilka minut)"):
     )
     shap.waterfall_plot(shap_explanation, show=False)
     st.pyplot(fig)
-    
+    st.markdown("""
+Wykres SHAP Waterfall przedstawia lokalne wyjaśnienie pojedynczej predykcji modelu, pokazując, w jaki sposób poszczególne cechy wpływały na końcową decyzję. Predykcja zwycięstwa jest wynikiem skumulowanego wpływu kilku kluczowych zmiennych, z których największe znaczenie mają cechy związane z przewagą ekonomiczną oraz tempem rozwoju drużyny. Ich dodatni wpływ systematycznie przesuwa predykcję w stronę wygranej.
+
+Cechy związane z kontrolą mapy oraz zadawanymi obrażeniami dodatkowo wzmacniają pozytywną decyzję modelu, natomiast zmienne o charakterze bardziej szczegółowym mają niewielki wpływ i jedynie korygują końcowy wynik. Negatywne oddziaływanie części cech nie jest wystarczające, aby zrównoważyć dominującą przewagę kluczowych czynników.
+    """) 
     actual_label = "Wygrana" if y_test.iloc[sample_idx] == 1 else "Przegrana"
     predicted_label = "Wygrana" if results[best_model_name]['y_pred'][sample_idx] == 1 else "Przegrana"
     st.write(f"**Rzeczywista klasa:** {actual_label}")
     st.write(f"**Przewidywana klasa:** {predicted_label}")
 
-st.markdown("""
-### Interpretacja SHAP:
-- **Summary plot (beeswarm)**: Pokazuje wpływ każdej cechy na predykcje. Kolor wskazuje wartość cechy (czerwony = wysoka, niebieski = niska), 
-  pozycja na osi X pokazuje wartość SHAP (wpływ na predykcję).
-- **Bar plot**: Pokazuje średnią absolutną wartość SHAP dla każdej cechy - im wyższa, tym ważniejsza cecha.
-- **Waterfall plot**: Pokazuje, jak poszczególne cechy przyczyniły się do konkretnej predykcji, zaczynając od wartości bazowej (średniej predykcji).
-""")
 
 # ========================================================================
 # PODSUMOWANIE I WNIOSKI
@@ -674,7 +694,7 @@ Przewidywanie wyniku meczu League of Legends (wygrana/przegrana) na podstawie da
 
 **Kluczowe obserwacje:**
 
-1. **Skuteczność predykcji**: Wszystkie modele osiągnęły wysoką dokładność (accuracy > 80%), co sugeruje, 
+1. **Skuteczność predykcji**: Wszystkie modele osiągnęły wysoką dokładność (accuracy > 70%), co sugeruje, 
    że dane z pierwszych 15 minut meczu zawierają istotne sygnały predykcyjne.
 
 2. **Najważniejsze cechy** (na podstawie SHAP):
