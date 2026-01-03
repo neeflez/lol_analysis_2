@@ -1,0 +1,612 @@
+Zajęcia 1 i 2 - metoda KNN, KKNN i regresja logistyczna
+
+
+Przykład w R
+Przykład w Pythonie
+
+
+Biblioteki:
+
+library(class)
+library(kknn)
+library(stats)
+library(e1071)
+library(dplyr)
+Dane:
+
+PimaIndiansDiabetes <- read.csv2("PimaIndiansDiabetes.csv")
+head(PimaIndiansDiabetes)
+##   pregnant glucose pressure triceps insulin mass pedigree age diabetes
+## 1        6     148       72      35       0 33.6    0.627  50      pos
+## 2        1      85       66      29       0 26.6    0.351  31      neg
+## 3        8     183       64       0       0 23.3    0.672  32      pos
+## 4        1      89       66      23      94 28.1    0.167  21      neg
+## 5        0     137       40      35     168 43.1    2.288  33      pos
+## 6        5     116       74       0       0 25.6    0.201  30      neg
+Przygotowanie danych:
+
+PimaIndiansDiabetes$diabetes <- as.factor(PimaIndiansDiabetes$diabetes)
+# Podział na zbiór uczący i testowy
+set.seed(9)
+index <- sample(768, 100, replace = F)
+testowy <- PimaIndiansDiabetes[index,]
+uczacy <- PimaIndiansDiabetes[-index,]
+
+# Standaryzacja
+uczacy[,1:8] <- scale(uczacy[,1:8])
+testowy[,1:8] <- scale(testowy[,1:8])
+
+
+Metoda K njabliższych sąsiadów
+
+# Predykcja na zbiorze uczącym
+knn.uczacy <- knn(train = uczacy[, -9],  
+                  test = uczacy[, -9], 
+                  cl = uczacy[, 9],    
+                  k = 3)      
+# Macierz błędów
+table(knn.uczacy, uczacy$diabetes)
+##           
+## knn.uczacy neg pos
+##        neg 407  56
+##        pos  32 173
+# Predykcja na zbiorze testowym
+knn.testowy <- knn(train = uczacy[, -9],  
+                   test = testowy[, -9], 
+                   cl = uczacy[, 9],    
+                   k = 3)    
+# Macierz błędów
+table(knn.testowy, testowy$diabetes)
+##            
+## knn.testowy neg pos
+##         neg  47  20
+##         pos  14  19
+
+
+Metoda ważonych odległości najbliższych sąsiadów
+
+# Predykcja na zbiorze uczącym
+kknn.uczacy <- kknn(formula = uczacy[, 9]~., 
+                    train = uczacy[, -9],     
+                    test = uczacy[, -9],      
+                    k = 3)                        
+kknn.uczacy.wyniki <- fitted(kknn.uczacy)
+# Macierz błędów
+table(kknn.uczacy.wyniki, uczacy$diabetes)
+##                   
+## kknn.uczacy.wyniki neg pos
+##                neg 439   0
+##                pos   0 229
+# Prognoza na zbiorze testowym
+kknn.testowy <- kknn(formula = uczacy[, 9]~.,  
+                     train = uczacy[, -9],     
+                     test = testowy[, -9],     
+                     k = 3)                         
+kknn.testowy.wyniki <- fitted(kknn.testowy)
+# Macierz błędów
+table(kknn.testowy.wyniki, testowy$diabetes)
+##                    
+## kknn.testowy.wyniki neg pos
+##                 neg  47  22
+##                 pos  14  17
+Macierz błędów wraz z miarami jakości klasyfikacji
+
+caret::confusionMatrix(kknn.testowy.wyniki, testowy$diabetes, positive = "pos")
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction neg pos
+##        neg  47  22
+##        pos  14  17
+##                                           
+##                Accuracy : 0.64            
+##                  95% CI : (0.5379, 0.7336)
+##     No Information Rate : 0.61            
+##     P-Value [Acc > NIR] : 0.3062          
+##                                           
+##                   Kappa : 0.2143          
+##                                           
+##  Mcnemar's Test P-Value : 0.2433          
+##                                           
+##             Sensitivity : 0.4359          
+##             Specificity : 0.7705          
+##          Pos Pred Value : 0.5484          
+##          Neg Pred Value : 0.6812          
+##              Prevalence : 0.3900          
+##          Detection Rate : 0.1700          
+##    Detection Prevalence : 0.3100          
+##       Balanced Accuracy : 0.6032          
+##                                           
+##        'Positive' Class : pos             
+## 
+
+
+Regresja logistyczna
+
+glm_model <- glm(diabetes ~ ., data = uczacy, family = "binomial")
+summary(glm_model)
+## 
+## Call:
+## glm(formula = diabetes ~ ., family = "binomial", data = uczacy)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.6073  -0.7035  -0.4067   0.6916   2.9158  
+## 
+## Coefficients:
+##             Estimate Std. Error z value Pr(>|z|)    
+## (Intercept) -0.91470    0.10578  -8.648  < 2e-16 ***
+## pregnant     0.40905    0.11909   3.435 0.000593 ***
+## glucose      1.13668    0.12922   8.796  < 2e-16 ***
+## pressure    -0.26614    0.10996  -2.420 0.015509 *  
+## triceps      0.05619    0.12068   0.466 0.641514    
+## insulin     -0.17660    0.11351  -1.556 0.119738    
+## mass         0.70874    0.12749   5.559 2.71e-08 ***
+## pedigree     0.36283    0.10852   3.343 0.000828 ***
+## age          0.25344    0.12033   2.106 0.035181 *  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 858.89  on 667  degrees of freedom
+## Residual deviance: 612.86  on 659  degrees of freedom
+## AIC: 630.86
+## 
+## Number of Fisher Scoring iterations: 5
+# Predykcja na zbiorze uczącym (wyniki: prawdopodobieństwo)
+predict(glm_model, newdata = uczacy, type = "response") %>%
+  head(10)
+##          1          2          4          5          6          7          8 
+## 0.75689875 0.04868502 0.03623753 0.92024305 0.13311413 0.06283971 0.62418655 
+##          9         10         11 
+## 0.70538892 0.03836815 0.19859517
+# Predykcja na zbiorze testowym (wyniki: prawdopodobieństwo)
+predict(glm_model, newdata = testowy, type = "response") %>% 
+  head(10)
+##        187        565        262        408        595          3        652 
+## 0.85126973 0.06712765 0.65774653 0.03306939 0.40555249 0.79331530 0.20124424 
+##        507        542        556 
+## 0.68707370 0.26401361 0.15788250
+Dalsze kroki:
+
+przypisanie klas w zależności od wielkości prawdopodobieństwa (konieczność wyboru progu odcięcia),
+ocena jakości klasyfikacji.
+
+
+
+
+Zajęcia 3 - drzewa decyzyjne
+
+
+Przykład w R
+Przykład w Pythonie
+
+
+Biblioteki:
+
+library(rpart)
+library(rattle)
+library(caret)
+library(vip)
+Dane:
+
+titanic <- read.csv(file.choose(), sep=";", dec=",")
+head(titanic)
+##   survived class gender age
+## 1        0     3   male  22
+## 2        1     1 female  38
+## 3        1     3 female  26
+## 4        1     1 female  35
+## 5        0     3   male  35
+## 6        0     1   male  54
+Przygotowanie danych:
+
+titanic$survived <- as.factor(titanic$survived)
+titanic$class <- as.factor(titanic$class)
+titanic$gender <- as.factor(titanic$gender)
+summary(titanic)
+##  survived class      gender         age       
+##  0:424    1:186   female:261   Min.   : 0.42  
+##  1:290    2:173   male  :453   1st Qu.:20.12  
+##           3:355                Median :28.00  
+##                                Mean   :29.70  
+##                                3rd Qu.:38.00  
+##                                Max.   :80.00
+Model drzewa decyzyjnego:
+
+set.seed(9)
+index  <- sample(nrow(titanic), 600, replace = F)
+train <- titanic[index,]
+test <- titanic[-index,]
+model <- rpart(survived ~., 
+               data = train, 
+               method = "class")
+model
+## n= 600 
+## 
+## node), split, n, loss, yval, (yprob)
+##       * denotes terminal node
+## 
+##   1) root 600 248 0 (0.58666667 0.41333333)  
+##     2) gender=male 381  84 0 (0.77952756 0.22047244)  
+##       4) age>=6.5 361  69 0 (0.80886427 0.19113573) *
+##       5) age< 6.5 20   5 1 (0.25000000 0.75000000) *
+##     3) gender=female 219  55 1 (0.25114155 0.74885845)  
+##       6) class=3 88  40 0 (0.54545455 0.45454545)  
+##        12) age>=36.5 12   1 0 (0.91666667 0.08333333) *
+##        13) age< 36.5 76  37 1 (0.48684211 0.51315789)  
+##          26) age>=5.5 65  30 0 (0.53846154 0.46153846)  
+##            52) age< 12 7   0 0 (1.00000000 0.00000000) *
+##            53) age>=12 58  28 1 (0.48275862 0.51724138)  
+##             106) age>=16.5 49  23 0 (0.53061224 0.46938776)  
+##               212) age< 21.5 17   6 0 (0.64705882 0.35294118) *
+##               213) age>=21.5 32  15 1 (0.46875000 0.53125000)  
+##                 426) age>=27.5 15   6 0 (0.60000000 0.40000000) *
+##                 427) age< 27.5 17   6 1 (0.35294118 0.64705882) *
+##             107) age< 16.5 9   2 1 (0.22222222 0.77777778) *
+##          27) age< 5.5 11   2 1 (0.18181818 0.81818182) *
+##       7) class=1,2 131   7 1 (0.05343511 0.94656489) *
+Postać drzewa decyzyjnego:
+
+fancyRpartPlot(model, sub=NULL)
+
+
+
+
+Parametry kontrolujące aspekty dopasowania drzewa:
+
+https://www.rdocumentation.org/packages/rpart/versions/4.1.23/topics/rpart.control
+
+
+
+Prognoza na zbiorze uczącym i testowym:
+
+y_pred_train <- predict(model, newdata = train[,-1], type = "class")
+y_pred_test <- predict(model, newdata = test[,-1], type = "class")
+confusionMatrix(y_pred_train, train$survived, positive ="1")
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction   0   1
+##          0 330  82
+##          1  22 166
+##                                          
+##                Accuracy : 0.8267         
+##                  95% CI : (0.794, 0.8561)
+##     No Information Rate : 0.5867         
+##     P-Value [Acc > NIR] : < 2.2e-16      
+##                                          
+##                   Kappa : 0.6293         
+##                                          
+##  Mcnemar's Test P-Value : 7.233e-09      
+##                                          
+##             Sensitivity : 0.6694         
+##             Specificity : 0.9375         
+##          Pos Pred Value : 0.8830         
+##          Neg Pred Value : 0.8010         
+##              Prevalence : 0.4133         
+##          Detection Rate : 0.2767         
+##    Detection Prevalence : 0.3133         
+##       Balanced Accuracy : 0.8034         
+##                                          
+##        'Positive' Class : 1              
+## 
+confusionMatrix(y_pred_test, test$survived, positive ="1")
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction  0  1
+##          0 63 11
+##          1  9 31
+##                                           
+##                Accuracy : 0.8246          
+##                  95% CI : (0.7421, 0.8894)
+##     No Information Rate : 0.6316          
+##     P-Value [Acc > NIR] : 5.458e-06       
+##                                           
+##                   Kappa : 0.6192          
+##                                           
+##  Mcnemar's Test P-Value : 0.8231          
+##                                           
+##             Sensitivity : 0.7381          
+##             Specificity : 0.8750          
+##          Pos Pred Value : 0.7750          
+##          Neg Pred Value : 0.8514          
+##              Prevalence : 0.3684          
+##          Detection Rate : 0.2719          
+##    Detection Prevalence : 0.3509          
+##       Balanced Accuracy : 0.8065          
+##                                           
+##        'Positive' Class : 1               
+## 
+
+
+Drzewo decyzjne ze zmienioną maksymalną głębokością:
+
+model2 <- rpart(survived ~.,
+                data = train,
+                method = "class",
+                control = rpart.control(maxdepth = 4))
+fancyRpartPlot(model2, sub=NULL)
+
+
+
+
+Wersja z entropią - dodanie argumentu w funkcji rpart: parms = list(split = “information”)
+
+
+
+Ważność zmiennych:
+
+vip(model2)
+
+
+
+
+Wykorzystanie pakietu caret i drzew decyzyjnych:
+
+model3 <- caret::train(survived ~ .,
+                       data = train,
+                       method = "rpart",
+                       tuneGrid = expand.grid(cp = seq(0.02, 0.2, 0.02))) 
+model3
+## CART 
+## 
+## 600 samples
+##   3 predictor
+##   2 classes: '0', '1' 
+## 
+## No pre-processing
+## Resampling: Bootstrapped (25 reps) 
+## Summary of sample sizes: 600, 600, 600, 600, 600, 600, ... 
+## Resampling results across tuning parameters:
+## 
+##   cp    Accuracy   Kappa    
+##   0.02  0.7868201  0.5443689
+##   0.04  0.7758523  0.5241207
+##   0.06  0.7724874  0.5194444
+##   0.08  0.7728226  0.5221839
+##   0.10  0.7733782  0.5229803
+##   0.12  0.7739442  0.5247887
+##   0.14  0.7743062  0.5257997
+##   0.16  0.7743062  0.5257997
+##   0.18  0.7743062  0.5257997
+##   0.20  0.7743062  0.5257997
+## 
+## Accuracy was used to select the optimal model using the largest value.
+## The final value used for the model was cp = 0.02.
+Postać drzewa decyzyjnego:
+
+fancyRpartPlot(model3$finalModel, sub=NULL)
+
+
+
+
+Pakiet caret - dodatkowe materiały:
+
+https://topepo.github.io/caret/index.html
+https://cran.r-project.org/web/packages/caret/caret.pdf
+https://www.machinelearningplus.com/machine-learning/caret-package/
+
+
+
+
+Interpretowalność w ML
+Interpretowalność - stopień, w jakim człowiek może zrozumieć przyczynę swojej decyzji
+
+Im wyższa interpretowalność modelu uczenia maszynowego, tym łatwiej komuś zrozumieć, dlaczego podjęto określone dezycje, prognozy.
+Model jest lepiej interpretowalny niż inny model jeśli jego decyzje są łatwiejsze do zrozumienia dla człowieka.
+Profile ceteris-paribus (PCP)
+Profile ceteris-paribus oceniają wpływ wybranej zmiennej objaśniającej na zmiany predykcji wywołane zmianami wartości zmiennej.
+
+Dodatkowe materiały:
+
+https://ema.drwhy.ai/ceterisParibus.html
+Wykresy częściowej zależności (PDP)
+Wykresy częściowej zależności - obserwacja zmian wartości zmiennej Y wywołanych zmianą jednej ze zmiennych X, w przypadku gdy pozostałe zmienne predykcyjne są uśredniane.
+
+Profil PD jest szacowany przez średnią profili CP dla wszystkich obserwacji ze zbioru danych.
+
+Dodatkowe materiały:
+
+https://ema.drwhy.ai/partialDependenceProfiles.html
+https://christophm.github.io/interpretable-ml-book/pdp.html
+Wartości SHAP
+Wartości SHAP (SHapley Additive exPlanations) mogą być pomocne do oceny wpływu zmiennych na ostateczny wynik.
+
+Dodatkowe materiały:
+
+https://ema.drwhy.ai/shapley.html
+https://christophm.github.io/interpretable-ml-book/shap.html
+
+
+
+
+
+Przykład
+Budowa i analiza modelu regresji logistycznej na danych ‘titanic’
+
+Wczytanie danych
+
+dane <- read.csv(choose.files(), header = TRUE, dec=",", sep=";")
+dane$sex <- as.factor(dane$sex)
+dane$class <- as.factor(dane$class)
+dane$survived <- as.factor(dane$survived)
+head(dane)
+##   survived class    sex age
+## 1       no     3   male  22
+## 2      yes     1 female  38
+## 3      yes     3 female  26
+## 4      yes     1 female  35
+## 5       no     3   male  35
+## 6       no     1   male  54
+Wykorzystanie pakietu caret i regresji logistycznej
+
+# Podział na zbiór uczący i testowy
+set.seed(9)
+index  <- sample(nrow(dane), 600, replace = F)
+uczacy <- dane[index,]
+testowy <- dane[-index,]
+
+library(caret)
+set.seed(9)
+model_glm <- caret::train(survived ~ .,
+                          data = uczacy,
+                          method = "glm")
+summary(model_glm)
+## 
+## Call:
+## NULL
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.7826  -0.7010  -0.3944   0.6434   2.4592  
+## 
+## Coefficients:
+##              Estimate Std. Error z value Pr(>|z|)    
+## (Intercept)  3.926945   0.446453   8.796  < 2e-16 ***
+## class2      -1.337687   0.305492  -4.379 1.19e-05 ***
+## class3      -2.742946   0.310311  -8.839  < 2e-16 ***
+## sexmale     -2.435568   0.225828 -10.785  < 2e-16 ***
+## age         -0.038274   0.008365  -4.576 4.75e-06 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 813.66  on 599  degrees of freedom
+## Residual deviance: 549.18  on 595  degrees of freedom
+## AIC: 559.18
+## 
+## Number of Fisher Scoring iterations: 5
+
+
+Profile ceteris-paribus (PCP)
+library(DALEX)
+explain_glm <- explain(model = model_glm,
+                       data = uczacy[,-1],
+                       y = uczacy$survived,
+                       type = "classification",
+                       label = "Logistic regression")
+## Preparation of a new explainer is initiated
+##   -> model label       :  Logistic regression 
+##   -> data              :  600  rows  3  cols 
+##   -> target variable   :  600  values 
+##   -> predict function  :  yhat.train  will be used (  default  )
+##   -> predicted values  :  No value for predict function target column. (  default  )
+##   -> model_info        :  package caret , ver. 6.0.90 , task classification (  default  ) 
+##   -> model_info        :  type set to  classification 
+##   -> model_info        :  Model info detected classification task but 'y' is a factor .  (  WARNING  )
+##   -> model_info        :  By deafult classification tasks supports only numercical 'y' parameter. 
+##   -> model_info        :  Consider changing to numerical vector with 0 and 1 values.
+##   -> model_info        :  Otherwise I will not be able to calculate residuals or loss function.
+##   -> predicted values  :  numerical, min =  0.01656412 , mean =  0.4133333 , max =  0.9791718  
+##   -> residual function :  difference between y and yhat (  default  )
+##   -> residuals         :  numerical, min =  NA , mean =  NA , max =  NA  
+##   A new explainer has been created!
+obs <- uczacy[10,]
+obs
+##     survived class    sex age
+## 556      yes     1 female  18
+pcp <- predict_profile(explainer = explain_glm,
+                       new_observation = obs)
+
+plot(pcp, variables = c("age"))
+
+
+plot(pcp, variables = c("class", "sex"), 
+     variable_type = "categorical", categorical_type = "bars")
+
+
+
+
+Wykresy częściowej zależności (PDP)
+Zmienne ilościowe:
+pdp <- model_profile(explainer = explain_glm, variables = "age")
+plot(pdp)
+
+
+plot(pdp, geom = "profiles") + 
+    ggtitle("PCP and PDP for age") 
+
+
+pdp <- model_profile(explainer = explain_glm, variables = "age", groups="sex")
+plot(pdp, geom = "profiles") + 
+    ggtitle("PCP and PDP for age") 
+
+
+pdp <- model_profile(explainer = explain_glm, variables = "age", groups="class")
+plot(pdp, geom = "profiles") + 
+    ggtitle("PCP and PDP for age") 
+
+
+
+Zmienne kategoryczne:
+pdp <- model_profile(explainer = explain_glm, variables = "sex", variable_type = "categorical")
+plot(pdp)
+
+
+pdp <- model_profile(explainer = explain_glm, variables = "class", variable_type = "categorical")
+plot(pdp)
+
+
+
+Wartości SHAP
+Wyresy BD (Break-down Plots for Interactions)
+Wykresy reprezentujące wpływ poszczególnych zmiennych na wynik końcowy.
+
+obs = uczacy[6,]
+obs
+##   survived class    sex age
+## 3      yes     3 female  26
+predict(model_glm, obs, type="prob")
+##          no       yes
+## 3 0.4529182 0.5470818
+bd1 <- predict_parts(explainer = explain_glm,
+                    new_observation = obs,
+                    type = "break_down_interactions", 
+                    order = c("sex", "class", "age"))
+p1 <- plot(bd1)
+bd2 <- predict_parts(explainer = explain_glm,
+                    new_observation = obs,
+                    type = "break_down_interactions", 
+                    order = c("age", "class", "sex"))
+p2 <- plot(bd2)
+bd3 <- predict_parts(explainer = explain_glm,
+                    new_observation = obs,
+                    type = "break_down_interactions", 
+                    order = c("class", "age", "sex"))
+p3 <- plot(bd3)
+library(gridExtra)
+grid.arrange(p1, p2, p3, nrow = 2)
+
+
+
+Wartości SHAP
+Uśrednienie wartości (udziałów) przypisanych danej zmiennej z wszystkich możliwych uporządkowań.
+
+shap <- predict_parts(explainer = explain_glm, 
+                      new_observation = obs, 
+                      type = "shap")
+p1 <- plot(shap)
+p2 <- plot(shap, show_boxplots = FALSE) 
+grid.arrange(p1, p2, nrow = 1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

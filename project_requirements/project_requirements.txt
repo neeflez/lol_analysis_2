@@ -1,0 +1,15 @@
+W projekcie powinny znaleźć się następujące elementy:
+
+wstęp zawierający cel pracy,
+EDA - eksploracyjna analiza danych (opis i wstępna analiza wykorzystywanych danych, podstawowe statystyki, analiza wpływu poszczególnych zmiennych na zmienną prognozowaną Y, ocena zbalansowania zbioru danych),
+odpowiednie przygotowanie danych (jeśli będzie konieczne): braki danych, wartości odstające, modyfikacja zmiennych,
+podział na zbiór uczący i testowy,
+zastosowanie minimum 3 różnych metod uczenia maszynowego (w tym algorytm SVM i/lub drzewa decyzyjne),
+analiza uzyskanych wyników (analiza jakości klasyfikacji, porównanie wyników uzyskanych za pomocą różnych metod),
+analiza interpretowalności wybranego modelu (w oparciu o profile ceteric-paribus/wykresy częściowej zależności/wartości SHAP),
+podsumowanie, wnioski z całego projektu.
+ 
+
+Sprawozdanie z projektu powinno skupiać się przede wszystkim na dokładnej analizie danych i wyników.
+
+Przy ocenianiu projektu brane będą pod uwagę wszelkie rozszerzenia zastosowane podczas budowy modeli (walidacja krzyżowa, optymalizacja hiperparametrów, oversampling/undersampling), poprawność wykorzystania metod, dokładność i poprawność interpretacji, strona wizualna.

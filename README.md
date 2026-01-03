@@ -1,96 +1,54 @@
-# Riot API Data Pipeline - League of Legends
+Projekt – Analiza danych i uczenie maszynowe
 
-Pipeline do automatycznego pobierania i przetwarzania danych graczy z Riot Games API. Zbiera dane graczy z rankingów (np. GOLD), pobiera ich mecze, analizuje timeline @15 minut i tworzy gotowy dataset do analizy ML.
+Projekt został wykonany w ramach projektu zaliczeniowego na studiach.
+Celem pracy jest analiza danych oraz budowa modeli uczenia maszynowego do przewidywania wyniku meczu League of Legends (wygrana/przegrana) na podstawie danych z pierwszych 15 minut gry.
 
-## 📋 Wymagania
+Zakres projektu
 
-- Python 3.8+
-- Riot Games API Key (https://developer.riotgames.com/)
+Projekt spełnia następujące wymagania:
 
-## 🚀 Instalacja
+wstęp z określeniem celu pracy,
 
-```bash
-cd lol_analysis_2
-pip install -r requirements.txt
-```
+EDA – eksploracyjna analiza danych (statystyki, wizualizacje, balans klas, wpływ zmiennych),
 
-Skonfiguruj API Key:
-```bash
-cp .env.example .env
-# Edytuj .env i wpisz: RIOT_API_KEY=twoj_klucz_tutaj
-```
+przygotowanie danych (filtracja, standaryzacja, opcjonalny oversampling SMOTE),
 
-## 💻 Użycie
+podział danych na zbiór uczący i testowy,
 
-### Podstawowe (100 graczy GOLD I)
-```bash
-python analysis/main.py --num_players 100
-```
+zastosowanie co najmniej 3 metod uczenia maszynowego (m.in. SVM i drzewa decyzyjne),
 
-### Pełny dataset (2000 graczy)
-```bash
-python analysis/main.py --num_players 2000 --out data/output/full_gold.csv
-```
+porównanie jakości modeli (Accuracy, Precision, Recall, F1, AUC),
 
-### Inne konfiguracje
-```bash
-# EUW Platinum
-python analysis/main.py --num_players 500 --platform EUW1 --tier PLATINUM --division III
+analiza interpretowalności modelu z wykorzystaniem SHAP,
 
-# 3 mecze na gracza
-python analysis/main.py --num_players 100 --matches_per_player 3
+podsumowanie oraz wnioski końcowe.
 
-# Świeże dane (clear cache)
-python analysis/main.py --num_players 100 --clear_cache
-```
+Dodatkowo zastosowano:
 
-## 📊 Parametry
+walidację krzyżową,
 
-| Parametr | Domyślnie | Opis |
-|----------|-----------|------|
-| `--num_players` | 100 | Liczba graczy |
-| `--matches_per_player` | 1 | Mecze na gracza |
-| `--platform` | EUN1 | EUN1, EUW1, NA1, KR |
-| `--region` | EUROPE | EUROPE, AMERICAS, ASIA |
-| `--tier` | GOLD | IRON-DIAMOND |
-| `--division` | I | I, II, III, IV |
-| `--out` | data/output/gold_dataset.csv | Ścieżka CSV |
-| `--clear_cache` | - | Wyczyść cache |
+optymalizację hiperparametrów (GridSearchCV),
 
-## 🔄 Pipeline (5 kroków)
+rozbudowaną wizualizację wyników.
 
-1. **get_gold_players()** → Pobiera graczy z League Entries
-2. **get_puuids()** → Konwertuje summonerId → puuid
-3. **get_match_ids()** → Pobiera match history
-4. **get_timeline_features_15()** → Oblicza features @15 min
-5. **get_match_outcomes()** → Określa win/lose
+Uruchomienie projektu
 
-Cache automatyczny w `data/cache/` - możliwe wznawianie po Ctrl+C.
+Projekt uruchamiany jest jako aplikacja Streamlit:
 
-## 📈 Output CSV
+streamlit run analysis/project.py
 
-Kolumny: `summonerId, puuid, matchId, win` + 22 features:
-- `gold_diff`, `cs_diff`, `level_diff`, `xp_diff`
-- `kills_diff`, `deaths_diff`, `towers_diff`, `dragons_diff`
-- `first_blood_diff`, `first_tower_diff`, etc.
+Technologie
 
-Wszystkie `*_diff` = team100 - team200
+Python
 
-## ⏱️ Czas wykonania
+Streamlit
 
-- 10 graczy: ~2-3 min
-- 100 graczy: ~15-20 min
-- 2000 graczy: ~4-6 godz
+pandas, numpy, matplotlib, seaborn
 
-## 🔧 Rate Limiting
+scikit-learn
 
-- Auto-retry dla 429 (rate limit)
-- Exponential backoff dla 5xx
-- Retry-After header handling
+imbalanced-learn (SMOTE)
 
-## 📝 Więcej info
+SHAP
 
-Zobacz: `QUICKSTART.md`, `ARCHITECTURE.md`
 
----
-**Projekt UM, Styczeń 2026**
