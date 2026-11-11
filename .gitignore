@@ -1,2 +1,29 @@
+# Secrets
 .env
+.env.*
+.streamlit/secrets.toml
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Pipeline artefacts (created at runtime by api/riot_client.py and api/storage.py)
+data/cache/
+data/raw/
+data/logs/
+data/processed/
+
+# Default outputs of stats/ scripts
+out/
+plots/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
